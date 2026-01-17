@@ -1,6 +1,6 @@
-// server.js - VERSIÓN CON CATEGORÍAS RELACIONALES
+// server.js - VERSIÓN COMPLETA EN ESPAÑOL
 // Para: El Chicho Shop
-// Fecha: 2025 - Versión 3.0
+// Fecha: 2025 - Versión 4.0 (Todo en español)
 
 require('dotenv').config();
 
@@ -22,7 +22,6 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
-
 
 pool.on('error', (err) => {
   console.error('Error inesperado en PostgreSQL:', err);
@@ -86,7 +85,7 @@ function authenticateToken(req, res, next) {
 // ============================================
 
 async function initDatabase() {
-  console.log('📄 Inicializando base de datos...');
+  console.log('🔄 Inicializando base de datos...');
   
   try {
     const test = await pool.query('SELECT NOW()');
@@ -94,98 +93,97 @@ async function initDatabase() {
 
     // Tabla de categorías
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS categories (
+      CREATE TABLE IF NOT EXISTS categorias (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(100) UNIQUE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        nombre TEXT NOT NULL,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('✅ Tabla "categories" creada/verificada');
+    console.log('✅ Tabla "categorias" creada/verificada');
 
     // Tabla de subcategorías
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS subcategories (
+      CREATE TABLE IF NOT EXISTS subcategorias (
         id SERIAL PRIMARY KEY,
-        category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,
-        name VARCHAR(100) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(category_id, name)
+        categoria_id INTEGER NOT NULL REFERENCES categorias(id) ON DELETE CASCADE,
+        nombre TEXT NOT NULL,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('✅ Tabla "subcategories" creada/verificada');
+    console.log('✅ Tabla "subcategorias" creada/verificada');
 
-    // Tabla de productos (NUEVA ESTRUCTURA)
+    // Tabla de productos
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS products (
+      CREATE TABLE IF NOT EXISTS productos (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-        subcategory_id INTEGER REFERENCES subcategories(id) ON DELETE SET NULL,
-        price DECIMAL(10, 2) NOT NULL,
+        nombre VARCHAR(255) NOT NULL,
+        categoria_id INTEGER REFERENCES categorias(id) ON DELETE SET NULL,
+        subcategoria_id INTEGER REFERENCES subcategorias(id) ON DELETE SET NULL,
+        precio DECIMAL(10, 2) NOT NULL,
         invertido DECIMAL(10, 2) DEFAULT 0,
-        description TEXT,
-        image_base64 TEXT,
+        descripcion TEXT,
+        imagen_base64 TEXT,
         stock INTEGER DEFAULT 0,
-        status VARCHAR(20) DEFAULT 'ACTIVO',
-        featured BOOLEAN DEFAULT false,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        estado VARCHAR(20) DEFAULT 'ACTIVO',
+        destacado BOOLEAN DEFAULT false,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('✅ Tabla "products" creada/verificada (con IDs relacionales)');
+    console.log('✅ Tabla "productos" creada/verificada');
 
     // Tabla de admins
     await pool.query(`
       CREATE TABLE IF NOT EXISTS admins (
         id SERIAL PRIMARY KEY,
-        username VARCHAR(100) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        role VARCHAR(50) DEFAULT 'admin',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        usuario VARCHAR(100) UNIQUE NOT NULL,
+        contrasena_hash VARCHAR(255) NOT NULL,
+        nombre VARCHAR(255) NOT NULL,
+        correo VARCHAR(255) NOT NULL,
+        rol VARCHAR(50) DEFAULT 'admin',
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('✅ Tabla "admins" creada/verificada');
 
     // Tabla de clientes
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS clients (
+      CREATE TABLE IF NOT EXISTS clientes (
         id SERIAL PRIMARY KEY,
-        username VARCHAR(100) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        phone VARCHAR(20),
-        role VARCHAR(50) DEFAULT 'client',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        usuario VARCHAR(100) UNIQUE NOT NULL,
+        contrasena_hash VARCHAR(255) NOT NULL,
+        nombre VARCHAR(255) NOT NULL,
+        correo VARCHAR(255) UNIQUE NOT NULL,
+        telefono VARCHAR(20),
+        rol VARCHAR(50) DEFAULT 'client',
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('✅ Tabla "clients" creada/verificada');
+    console.log('✅ Tabla "clientes" creada/verificada');
 
     // Tabla de ventas
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS sales (
+      CREATE TABLE IF NOT EXISTS ventas (
         id SERIAL PRIMARY KEY,
-        order_number VARCHAR(100) UNIQUE NOT NULL,
-        cart_data JSONB NOT NULL,
+        numero_orden VARCHAR(100) UNIQUE NOT NULL,
+        datos_carrito JSONB NOT NULL,
         total DECIMAL(10, 2) NOT NULL,
-        client_name VARCHAR(255),
-        client_email VARCHAR(255),
-        client_phone VARCHAR(20),
-        status VARCHAR(50) DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        nombre_cliente VARCHAR(255),
+        correo_cliente VARCHAR(255),
+        telefono_cliente VARCHAR(20),
+        estado VARCHAR(50) DEFAULT 'pendiente',
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('✅ Tabla "sales" creada/verificada');
+    console.log('✅ Tabla "ventas" creada/verificada');
 
     // RECREAR ADMIN
-    await pool.query("DELETE FROM admins WHERE username = $1", [process.env.ADMIN_USERNAME]);
+    await pool.query("DELETE FROM admins WHERE usuario = $1", [process.env.ADMIN_USERNAME]);
     
     const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
     
     await pool.query(`
-      INSERT INTO admins (username, password_hash, name, email, role)
+      INSERT INTO admins (usuario, contrasena_hash, nombre, correo, rol)
       VALUES ($1, $2, $3, $4, $5)
     `, [
       process.env.ADMIN_USERNAME,
@@ -197,7 +195,7 @@ async function initDatabase() {
     
     console.log('✅ Administrador recreado desde .env');
     console.log('👤 Usuario:', process.env.ADMIN_USERNAME);
-    console.log('🔑 Contraseña:', process.env.ADMIN_PASSWORD);
+    console.log('🔐 Contraseña:', process.env.ADMIN_PASSWORD);
     console.log('🎉 Base de datos inicializada correctamente\n');
     
     return true;
@@ -214,7 +212,7 @@ async function initDatabase() {
 
 app.get('/', (req, res) => {
   res.json({
-    message: '🚀 El Chicho Shop API v3.0',
+    message: '🚀 El Chicho Shop API v4.0',
     status: 'Operativo',
     env: process.env.NODE_ENV,
     endpoints: {
@@ -250,7 +248,7 @@ app.get('/', (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     const dbTest = await pool.query('SELECT NOW()');
-    const productsCount = await pool.query('SELECT COUNT(*) FROM products');
+    const productsCount = await pool.query('SELECT COUNT(*) FROM productos');
     
     res.json({
       success: true,
@@ -294,7 +292,7 @@ app.post('/api/clients/register', async (req, res) => {
     }
     
     const existingUser = await pool.query(
-      'SELECT id FROM clients WHERE username = $1 OR email = $2',
+      'SELECT id FROM clientes WHERE usuario = $1 OR correo = $2',
       [username, email]
     );
     
@@ -308,9 +306,9 @@ app.post('/api/clients/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     
     const result = await pool.query(
-      `INSERT INTO clients (username, password_hash, name, email, phone, role)
+      `INSERT INTO clientes (usuario, contrasena_hash, nombre, correo, telefono, rol)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, username, name, email, phone, role, created_at`,
+       RETURNING id, usuario, nombre, correo, telefono, rol, fecha_creacion`,
       [username, hashedPassword, name, email, phone || null, 'client']
     );
     
@@ -348,7 +346,7 @@ app.post('/api/clients/login', async (req, res) => {
     }
     
     const result = await pool.query(
-      'SELECT * FROM clients WHERE username = $1 OR email = $1',
+      'SELECT * FROM clientes WHERE usuario = $1 OR correo = $1',
       [identifier]
     );
     
@@ -361,7 +359,7 @@ app.post('/api/clients/login', async (req, res) => {
     }
     
     const client = result.rows[0];
-    const validPassword = await bcrypt.compare(password, client.password_hash);
+    const validPassword = await bcrypt.compare(password, client.contrasena_hash);
     
     if (!validPassword) {
       console.log('❌ Contraseña incorrecta para:', identifier);
@@ -374,17 +372,17 @@ app.post('/api/clients/login', async (req, res) => {
     const token = jwt.sign(
       {
         userId: client.id,
-        username: client.username,
-        name: client.name,
-        role: client.role
+        username: client.usuario,
+        name: client.nombre,
+        role: client.rol
       },
       JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
     
-    const { password_hash, ...clientData } = client;
+    const { contrasena_hash, ...clientData } = client;
     
-    console.log('✅ Login de cliente exitoso:', client.username);
+    console.log('✅ Login de cliente exitoso:', client.usuario);
     
     res.json({
       success: true,
@@ -406,58 +404,49 @@ app.post('/api/clients/login', async (req, res) => {
 });
 
 // ============================================
-// RUTAS DE PRODUCTOS (PÚBLICAS) - ACTUALIZADAS
-// ============================================
-
-// ============================================
-// CORRECCIÓN: Endpoint /api/products
-// ============================================
-
-// ============================================
-// CORRECCIÓN COMPLETA: Endpoint /api/products
+// RUTAS DE PRODUCTOS (PÚBLICAS)
 // ============================================
 
 app.get("/api/products", async (req, res) => {
   try {
     const { category_id, search, limit = 50 } = req.query;
 
-    // 🔧 QUERY CORREGIDO - Sin el doble '='
     let query = `
       SELECT 
         p.id,
-        p.name,
-        p.category_id,
-        p.subcategory_id,
-        p.price,
+        p.nombre,
+        p.categoria_id,
+        p.subcategoria_id,
+        p.precio,
         p.invertido,
-        p.description,
-        p.image_base64,
+        p.descripcion,
+        p.imagen_base64,
         p.stock,
-        p.status,
-        p.featured,
-        p.created_at,
-        p.updated_at,
-        c.name AS category_name, 
-        s.name AS subcategory_name
-      FROM products p
-      LEFT JOIN categories c ON c.id = p.category_id
-      LEFT JOIN subcategories s ON s.id = p.subcategory_id
-      WHERE p.status = 'ACTIVO'
+        p.estado,
+        p.destacado,
+        p.fecha_creacion,
+        p.fecha_actualizacion,
+        c.nombre AS nombre_categoria, 
+        s.nombre AS nombre_subcategoria
+      FROM productos p
+      LEFT JOIN categorias c ON c.id = p.categoria_id
+      LEFT JOIN subcategorias s ON s.id = p.subcategoria_id
+      WHERE p.estado = 'ACTIVO'
     `;
 
     const params = [];
 
     if (category_id) {
       params.push(category_id);
-      query += ` AND p.category_id = $${params.length}`;
+      query += ` AND p.categoria_id = $${params.length}`;
     }
 
     if (search) {
       params.push(`%${search}%`);
-      query += ` AND (p.name ILIKE $${params.length} OR p.description ILIKE $${params.length})`;
+      query += ` AND (p.nombre ILIKE $${params.length} OR p.descripcion ILIKE $${params.length})`;
     }
 
-    query += " ORDER BY p.created_at DESC LIMIT $" + (params.length + 1);
+    query += " ORDER BY p.fecha_creacion DESC LIMIT $" + (params.length + 1);
     params.push(parseInt(limit));
 
     console.log('📦 Ejecutando query de productos:', query);
@@ -483,18 +472,14 @@ app.get("/api/products", async (req, res) => {
   }
 });
 
-// ============================================
-// CORRECCIÓN ADICIONAL: Endpoint /api/products/:id
-// ============================================
-
 app.get('/api/products/:id', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT p.*, c.name AS category_name, s.name AS subcategory_name
-      FROM products p
-      LEFT JOIN categories c ON c.id = p.category_id
-      LEFT JOIN subcategories s ON s.id = p.subcategory_id
-      WHERE p.id = $1 AND LOWER(p.status) = 'activo'
+      SELECT p.*, c.nombre AS nombre_categoria, s.nombre AS nombre_subcategoria
+      FROM productos p
+      LEFT JOIN categorias c ON c.id = p.categoria_id
+      LEFT JOIN subcategorias s ON s.id = p.subcategoria_id
+      WHERE p.id = $1 AND LOWER(p.estado) = 'activo'
     `, [req.params.id]);
     
     if (result.rows.length === 0) {
@@ -519,15 +504,10 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-// ============================================
-// VERIFICACIÓN ADICIONAL: Status de productos
-// ============================================
-
-// Endpoint de debugging para verificar productos en DB
 app.get('/api/debug/products', async (req, res) => {
   try {
-    const allProducts = await pool.query('SELECT id, name, status FROM products');
-    const activeProducts = await pool.query("SELECT id, name, status FROM products WHERE LOWER(status) = 'activo'");
+    const allProducts = await pool.query('SELECT id, nombre, estado FROM productos');
+    const activeProducts = await pool.query("SELECT id, nombre, estado FROM productos WHERE LOWER(estado) = 'activo'");
     
     res.json({
       success: true,
@@ -538,95 +518,6 @@ app.get('/api/debug/products', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ============================================
-// CORRECCIÓN ADICIONAL: Endpoint /api/products/:id
-// ============================================
-
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT p.*, c.name AS category_name, s.name AS subcategory_name
-      FROM products p
-      LEFT JOIN categories c ON c.id = p.category_id
-      LEFT JOIN subcategories s ON s.id = p.subcategory_id
-      WHERE p.id = $1 AND LOWER(p.status) = 'activo'
-    `, [req.params.id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Producto no encontrado'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: result.rows[0]
-    });
-    
-  } catch (error) {
-    console.error('❌ Error obteniendo producto:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error obteniendo producto',
-      error: error.message
-    });
-  }
-});
-
-// ============================================
-// VERIFICACIÓN ADICIONAL: Status de productos
-// ============================================
-
-// Endpoint de debugging para verificar productos en DB
-app.get('/api/debug/products', async (req, res) => {
-  try {
-    const allProducts = await pool.query('SELECT id, name, status FROM products');
-    const activeProducts = await pool.query("SELECT id, name, status FROM products WHERE LOWER(status) = 'activo'");
-    
-    res.json({
-      success: true,
-      total: allProducts.rows.length,
-      active: activeProducts.rows.length,
-      allProducts: allProducts.rows,
-      activeProducts: activeProducts.rows
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT p.*, c.name AS category_name, s.name AS subcategory_name, LOWER(p.status) AS status
-      FROM products p
-      LEFT JOIN categories c ON c.id = p.category_id
-      LEFT JOIN subcategories s ON s.id = p.subcategory_id
-      WHERE p.id = $1 AND LOWER(p.status) = 'activo'
-    `, [req.params.id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Producto no encontrado'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: result.rows[0]
-    });
-    
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error obteniendo producto',
-      error: error.message
-    });
   }
 });
 
@@ -635,15 +526,15 @@ app.get('/api/categories', async (req, res) => {
     const result = await pool.query(`
       SELECT 
         c.id,
-        c.name,
-        COUNT(p.id) as product_count,
-        ARRAY_AGG(DISTINCT jsonb_build_object('id', s.id, 'name', s.name)) 
-          FILTER (WHERE s.id IS NOT NULL) as subcategories
-      FROM categories c
-      LEFT JOIN products p ON p.category_id = c.id AND LOWER(p.status) = 'activo'
-      LEFT JOIN subcategories s ON s.category_id = c.id
-      GROUP BY c.id, c.name
-      ORDER BY c.name ASC
+        c.nombre,
+        COUNT(p.id) as cantidad_productos,
+        ARRAY_AGG(DISTINCT jsonb_build_object('id', s.id, 'nombre', s.nombre)) 
+          FILTER (WHERE s.id IS NOT NULL) as subcategorias
+      FROM categorias c
+      LEFT JOIN productos p ON p.categoria_id = c.id AND LOWER(p.estado) = 'activo'
+      LEFT JOIN subcategorias s ON s.categoria_id = c.id
+      GROUP BY c.id, c.nombre
+      ORDER BY c.nombre ASC
     `);
     
     res.json({
@@ -683,7 +574,7 @@ app.post('/api/sales', async (req, res) => {
     const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     
     const result = await pool.query(
-      `INSERT INTO sales (order_number, cart_data, total, client_name, client_email, client_phone, status)
+      `INSERT INTO ventas (numero_orden, datos_carrito, total, nombre_cliente, correo_cliente, telefono_cliente, estado)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
@@ -693,7 +584,7 @@ app.post('/api/sales', async (req, res) => {
         client_name || 'Cliente',
         client_email || '',
         client_phone || '',
-        'pending'
+        'pendiente'
       ]
     );
     
@@ -737,7 +628,7 @@ app.post('/api/admin/login', async (req, res) => {
     }
     
     const result = await pool.query(
-      'SELECT * FROM admins WHERE username = $1',
+      'SELECT * FROM admins WHERE usuario = $1',
       [username]
     );
     
@@ -750,7 +641,7 @@ app.post('/api/admin/login', async (req, res) => {
     }
     
     const admin = result.rows[0];
-    const validPassword = await bcrypt.compare(password, admin.password_hash);
+    const validPassword = await bcrypt.compare(password, admin.contrasena_hash);
     
     if (!validPassword) {
       console.log('❌ Contraseña incorrecta para admin:', username);
@@ -763,15 +654,15 @@ app.post('/api/admin/login', async (req, res) => {
     const token = jwt.sign(
       {
         userId: admin.id,
-        username: admin.username,
-        name: admin.name,
-        role: admin.role
+        username: admin.usuario,
+        name: admin.nombre,
+        role: admin.rol
       },
       JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
     
-    const { password_hash, ...adminData } = admin;
+    const { contrasena_hash, ...adminData } = admin;
     
     console.log('✅ Login admin exitoso:', username);
     
@@ -795,7 +686,7 @@ app.post('/api/admin/login', async (req, res) => {
 app.get('/api/admin/verify', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, username, name, email, role FROM admins WHERE id = $1',
+      'SELECT id, usuario, nombre, correo, rol FROM admins WHERE id = $1',
       [req.user.userId]
     );
     
@@ -821,18 +712,18 @@ app.get('/api/admin/verify', authenticateToken, async (req, res) => {
 });
 
 // ============================================
-// RUTAS DE ADMIN - CATEGORÍAS (NUEVAS)
+// RUTAS DE ADMIN - CATEGORÍAS
 // ============================================
 
 app.get("/api/admin/categories", authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT c.id, c.name, c.created_at,
-        COUNT(p.id) AS product_count
-      FROM categories c
-      LEFT JOIN products p ON p.category_id = c.id
+      SELECT c.id, c.nombre, c.fecha_creacion,
+        COUNT(p.id) AS cantidad_productos
+      FROM categorias c
+      LEFT JOIN productos p ON p.categoria_id = c.id
       GROUP BY c.id
-      ORDER BY c.name ASC
+      ORDER BY c.nombre ASC
     `);
     
     res.json({ success: true, data: result.rows });
@@ -858,7 +749,7 @@ app.post("/api/admin/categories", authenticateToken, async (req, res) => {
     }
     
     const result = await pool.query(
-      "INSERT INTO categories (name) VALUES ($1) RETURNING *",
+      "INSERT INTO categorias (nombre) VALUES ($1) RETURNING *",
       [name]
     );
     
@@ -881,7 +772,7 @@ app.post("/api/admin/categories", authenticateToken, async (req, res) => {
 app.delete("/api/admin/categories/:id", authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      "DELETE FROM categories WHERE id = $1 RETURNING *", 
+      "DELETE FROM categorias WHERE id = $1 RETURNING *", 
       [req.params.id]
     );
     
@@ -909,13 +800,13 @@ app.delete("/api/admin/categories/:id", authenticateToken, async (req, res) => {
 });
 
 // ============================================
-// RUTAS DE ADMIN - SUBCATEGORÍAS (NUEVAS)
+// RUTAS DE ADMIN - SUBCATEGORÍAS
 // ============================================
 
 app.get("/api/admin/categories/:id/subcategories", authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM subcategories WHERE category_id = $1 ORDER BY name ASC",
+      "SELECT * FROM subcategorias WHERE categoria_id = $1 ORDER BY nombre ASC",
       [req.params.id]
     );
     
@@ -942,7 +833,7 @@ app.post("/api/admin/subcategories", authenticateToken, async (req, res) => {
     }
     
     const result = await pool.query(
-      "INSERT INTO subcategories (category_id, name) VALUES ($1, $2) RETURNING *",
+      "INSERT INTO subcategorias (categoria_id, nombre) VALUES ($1, $2) RETURNING *",
       [category_id, name]
     );
     
@@ -965,7 +856,7 @@ app.post("/api/admin/subcategories", authenticateToken, async (req, res) => {
 app.delete("/api/admin/subcategories/:id", authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      "DELETE FROM subcategories WHERE id = $1 RETURNING *", 
+      "DELETE FROM subcategorias WHERE id = $1 RETURNING *", 
       [req.params.id]
     );
     
@@ -993,7 +884,7 @@ app.delete("/api/admin/subcategories/:id", authenticateToken, async (req, res) =
 });
 
 // ============================================
-// RUTAS DE ADMIN - PRODUCTOS (ACTUALIZADAS)
+// RUTAS DE ADMIN - PRODUCTOS
 // ============================================
 
 app.get("/api/admin/products", authenticateToken, async (req, res) => {
@@ -1001,10 +892,10 @@ app.get("/api/admin/products", authenticateToken, async (req, res) => {
     const { category_id, status, search, limit = 100 } = req.query;
     
     let query = `
-      SELECT p.*, c.name AS category_name, s.name AS subcategory_name
-      FROM products p
-      LEFT JOIN categories c ON c.id = p.category_id
-      LEFT JOIN subcategories s ON s.id = p.subcategory_id
+      SELECT p.*, c.nombre AS nombre_categoria, s.nombre AS nombre_subcategoria
+      FROM productos p
+      LEFT JOIN categorias c ON c.id = p.categoria_id
+      LEFT JOIN subcategorias s ON s.id = p.subcategoria_id
       WHERE 1=1
     `;
     
@@ -1012,20 +903,20 @@ app.get("/api/admin/products", authenticateToken, async (req, res) => {
     
     if (category_id && category_id !== 'all') {
       params.push(category_id);
-      query += ` AND p.category_id = $${params.length}`;
+      query += ` AND p.categoria_id = $${params.length}`;
     }
     
     if (status && status !== 'all') {
       params.push(status);
-      query += ` AND p.status = $${params.length}`;
+      query += ` AND p.estado = $${params.length}`;
     }
     
     if (search) {
       params.push(`%${search}%`);
-      query += ` AND (p.name ILIKE $${params.length} OR p.description ILIKE $${params.length})`;
+      query += ` AND (p.nombre ILIKE $${params.length} OR p.descripcion ILIKE $${params.length})`;
     }
     
-    query += ' ORDER BY p.created_at DESC LIMIT $' + (params.length + 1);
+    query += ' ORDER BY p.fecha_creacion DESC LIMIT $' + (params.length + 1);
     params.push(parseInt(limit));
     
     const result = await pool.query(query, params);
@@ -1049,29 +940,30 @@ app.get("/api/admin/products", authenticateToken, async (req, res) => {
 app.get('/api/admin/products/:id', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT p.*, c.name AS category_name, s.name AS subcategory_name
-      FROM products p
-      LEFT JOIN categories c ON c.id = p.category_id
-      LEFT JOIN subcategories s ON s.id = p.subcategory_id
+      SELECT p.*, c.nombre AS nombre_categoria, s.nombre AS nombre_subcategoria
+      FROM productos p
+      LEFT JOIN categorias c ON c.id = p.categoria_id
+      LEFT JOIN subcategorias s ON s.id = p.subcategoria_id
       WHERE p.id = $1
     `, [req.params.id]);
-
+    
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Producto no encontrado'
       });
     }
-
+    
     res.json({
       success: true,
       data: result.rows[0]
     });
-
+    
   } catch (error) {
+    console.error('Error obteniendo producto:', error);
     res.status(500).json({
       success: false,
-      message: 'Error obteniendo producto por ID',
+      message: 'Error obteniendo producto',
       error: error.message
     });
   }
@@ -1079,54 +971,52 @@ app.get('/api/admin/products/:id', authenticateToken, async (req, res) => {
 
 app.post("/api/admin/products", authenticateToken, async (req, res) => {
   try {
-    const { 
-      name, 
-      category_id, 
-      subcategory_id, 
-      price, 
+    const {
+      name,
+      category_id,
+      subcategory_id,
+      price,
       invertido,
-      description, 
-      image_base64, 
+      description,
+      image_base64,
       stock,
       status,
       featured
     } = req.body;
     
-    if (!name || !category_id || !price) {
+    if (!name || !price) {
       return res.status(400).json({
         success: false,
-        message: 'Campos requeridos: name, category_id, price'
+        message: 'Nombre y precio son requeridos'
       });
     }
     
     const result = await pool.query(
-      `INSERT INTO products (name, category_id, subcategory_id, price, invertido, description, image_base64, stock, status, featured)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      `INSERT INTO productos (
+        nombre, categoria_id, subcategoria_id, precio, invertido,
+        descripcion, imagen_base64, stock, estado, destacado
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *`,
       [
-        name, 
-        category_id, 
-        subcategory_id || null, 
+        name,
+        category_id || null,
+        subcategory_id || null,
         parseFloat(price),
         parseFloat(invertido) || 0,
-        description || null, 
-        image_base64 || null, 
+        description || '',
+        image_base64 || null,
         parseInt(stock) || 0,
-        (
-          status?.toLowerCase() === 'inactivo' 
-          || status?.toLowerCase() === 'inactive'
-        )
-        ? 'inactive'
-        : 'ACTIVO',
-
+        status || 'ACTIVO',
         featured || false
       ]
     );
     
     console.log('✅ Producto creado:', result.rows[0].id);
     
-    res.status(201).json({ 
-      success: true, 
-      data: result.rows[0] 
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
     });
     
   } catch (error) {
@@ -1141,70 +1031,48 @@ app.post("/api/admin/products", authenticateToken, async (req, res) => {
 
 app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { 
-      name, 
-      category_id, 
-      subcategory_id, 
+    const {
+      name,
+      category_id,
+      subcategory_id,
       price,
       invertido,
-      description, 
-      image_base64, 
+      description,
+      image_base64,
       stock,
       status,
       featured
     } = req.body;
     
-    const fields = [];
-    const values = [];
-    let paramCount = 1;
-    
-    const allowedFields = {
-    name,
-    category_id,
-    subcategory_id,
-    price,
-    invertido,
-    description,
-    image_base64,
-    stock,
-    featured,
-
-  // 🔥 CORRECCIÓN AQUÍ MISMO
-  status:
-    (status?.toLowerCase() === "inactivo" ||
-     status?.toLowerCase() === "inactive")
-      ? "inactive"
-      : "ACTIVO"
-};
-
-    
-    for (const [field, value] of Object.entries(allowedFields)) {
-      if (value !== undefined) {
-        fields.push(`${field} = ${paramCount}`);
-        values.push(value);
-        paramCount++;
-      }
-    }
-    
-    if (fields.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No hay campos para actualizar'
-      });
-    }
-    
-    fields.push(`updated_at = CURRENT_TIMESTAMP`);
-    values.push(id);
-    
-    const query = `
-      UPDATE products 
-      SET ${fields.join(', ')}
-      WHERE id = ${paramCount}
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, values);
+    const result = await pool.query(
+      `UPDATE productos SET
+        nombre = COALESCE($1, nombre),
+        categoria_id = COALESCE($2, categoria_id),
+        subcategoria_id = COALESCE($3, subcategoria_id),
+        precio = COALESCE($4, precio),
+        invertido = COALESCE($5, invertido),
+        descripcion = COALESCE($6, descripcion),
+        imagen_base64 = COALESCE($7, imagen_base64),
+        stock = COALESCE($8, stock),
+        estado = COALESCE($9, estado),
+        destacado = COALESCE($10, destacado),
+        fecha_actualizacion = CURRENT_TIMESTAMP
+      WHERE id = $11
+      RETURNING *`,
+      [
+        name,
+        category_id,
+        subcategory_id,
+        price ? parseFloat(price) : null,
+        invertido !== undefined ? parseFloat(invertido) : null,
+        description,
+        image_base64,
+        stock !== undefined ? parseInt(stock) : null,
+        status,
+        featured,
+        req.params.id
+      ]
+    );
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -1213,11 +1081,11 @@ app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
       });
     }
     
-    console.log('✅ Producto actualizado:', id);
+    console.log('✅ Producto actualizado:', req.params.id);
     
-    res.json({ 
-      success: true, 
-      data: result.rows[0] 
+    res.json({
+      success: true,
+      data: result.rows[0]
     });
     
   } catch (error) {
@@ -1230,13 +1098,11 @@ app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
   }
 });
 
-app.delete('/api/admin/products/:id', authenticateToken, async (req, res) => {
+app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    
     const result = await pool.query(
-      'DELETE FROM products WHERE id = $1 RETURNING *',
-      [id]
+      "DELETE FROM productos WHERE id = $1 RETURNING *",
+      [req.params.id]
     );
     
     if (result.rows.length === 0) {
@@ -1246,12 +1112,11 @@ app.delete('/api/admin/products/:id', authenticateToken, async (req, res) => {
       });
     }
     
-    console.log('✅ Producto eliminado:', id);
+    console.log('✅ Producto eliminado:', req.params.id);
     
     res.json({
       success: true,
-      message: 'Producto eliminado',
-      data: result.rows[0]
+      message: 'Producto eliminado'
     });
     
   } catch (error) {
@@ -1265,146 +1130,36 @@ app.delete('/api/admin/products/:id', authenticateToken, async (req, res) => {
 });
 
 // ============================================
-// RUTAS DE ADMIN - DASHBOARD
+// RUTAS DE ADMIN - DASHBOARD Y VENTAS
 // ============================================
 
 app.get('/api/admin/dashboard', authenticateToken, async (req, res) => {
   try {
-    const products = await pool.query("SELECT * FROM products");
-
-    let totalInvertido = 0;
-    let totalVenta = 0;
-
-    products.rows.forEach(p => {
-      const inv = Number(p.invertido) || 0;
-      const venta = Number(p.price) || 0;
-      const stock = Number(p.stock) || 0;
-
-      totalInvertido += inv * stock;
-      totalVenta += venta * stock;
-    });
-
-    const sales = await pool.query("SELECT * FROM sales ORDER BY created_at DESC");
+    const totalProducts = await pool.query('SELECT COUNT(*) FROM productos');
+    const activeProducts = await pool.query("SELECT COUNT(*) FROM productos WHERE LOWER(estado) = 'activo'");
+    const totalCategories = await pool.query('SELECT COUNT(*) FROM categorias');
+    const totalSales = await pool.query('SELECT COUNT(*), SUM(total) FROM ventas');
+    const recentSales = await pool.query(
+      'SELECT * FROM ventas ORDER BY fecha_creacion DESC LIMIT 10'
+    );
     
-    let productosVendidos = 0;
-    let ingresosTotales = 0;
-
-    sales.rows.forEach(s => {
-      ingresosTotales += Number(s.total) || 0;
-
-      const cart = s.cart_data || [];
-      cart.forEach(item => {
-        productosVendidos += Number(item.quantity) || 0;
-      });
-    });
-
     res.json({
       success: true,
       data: {
-        totalProductos: products.rows.length,
-        productosVendidos,
-        totalInvertido,
-        valorInventario: totalVenta,
-        gananciaPotencial: totalVenta - totalInvertido,
-        ingresosTotales,
-        ventas: sales.rows.slice(0, 10)
+        productos_totales: parseInt(totalProducts.rows[0].count),
+        productos_activos: parseInt(activeProducts.rows[0].count),
+        categorias_totales: parseInt(totalCategories.rows[0].count),
+        ventas_totales: parseInt(totalSales.rows[0].count || 0),
+        ventas_monto_total: parseFloat(totalSales.rows[0].sum || 0),
+        ventas_recientes: recentSales.rows
       }
     });
-
+    
   } catch (error) {
-    console.error('Error en /api/admin/dashboard:', error);
+    console.error('Error obteniendo dashboard:', error);
     res.status(500).json({
       success: false,
-      message: "Error cargando dashboard",
-      error: error.message
-    });
-  }
-});
-
-app.get('/api/admin/dashboard/top-products', authenticateToken, async (req, res) => {
-  try {
-    const sales = await pool.query("SELECT cart_data FROM sales");
-
-    const productos = {};
-
-    sales.rows.forEach(s => {
-      (s.cart_data || []).forEach(item => {
-        if (!productos[item.id]) {
-          productos[item.id] = {
-            id: item.id,
-            name: item.name,
-            quantity: 0
-          };
-        }
-        productos[item.id].quantity += Number(item.quantity);
-      });
-    });
-
-    const top = Object.values(productos)
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 10);
-
-    res.json({ success: true, data: top });
-
-  } catch (error) {
-    console.error('Error en /api/admin/dashboard/top-products:', error);
-    res.status(500).json({
-      success: false,
-      message: "Error obteniendo top productos",
-      error: error.message
-    });
-  }
-});
-
-app.get('/api/admin/dashboard/top-categories', authenticateToken, async (req, res) => {
-  try {
-    const sales = await pool.query("SELECT cart_data FROM sales");
-
-    const categorias = {};
-
-    sales.rows.forEach(s => {
-      (s.cart_data || []).forEach(item => {
-        const cat = item.category || "Sin categoría";
-
-        if (!categorias[cat]) categorias[cat] = 0;
-        categorias[cat] += Number(item.quantity);
-      });
-    });
-
-    const sorted = Object.entries(categorias)
-      .map(([name, qty]) => ({ name, qty }))
-      .sort((a, b) => b.qty - a.qty)
-      .slice(0, 5);
-
-    res.json({ success: true, data: sorted });
-
-  } catch (error) {
-    console.error('Error en /api/admin/dashboard/top-categories:', error);
-    res.status(500).json({
-      success: false,
-      message: "Error obteniendo categorías",
-      error: error.message
-    });
-  }
-});
-
-app.get('/api/admin/dashboard/daily-sales', authenticateToken, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT DATE(created_at) AS fecha, SUM(total) AS total
-      FROM sales
-      GROUP BY DATE(created_at)
-      ORDER BY fecha DESC
-      LIMIT 7
-    `);
-
-    res.json({ success: true, data: result.rows });
-
-  } catch (error) {
-    console.error('Error en /api/admin/dashboard/daily-sales:', error);
-    res.status(500).json({
-      success: false,
-      message: "Error obteniendo ventas diarias",
+      message: 'Error obteniendo datos del dashboard',
       error: error.message
     });
   }
@@ -1412,12 +1167,20 @@ app.get('/api/admin/dashboard/daily-sales', authenticateToken, async (req, res) 
 
 app.get('/api/admin/sales', authenticateToken, async (req, res) => {
   try {
-    const { limit = 50 } = req.query;
+    const { status, limit = 50 } = req.query;
     
-    const result = await pool.query(
-      'SELECT * FROM sales ORDER BY created_at DESC LIMIT $1',
-      [parseInt(limit)]
-    );
+    let query = 'SELECT * FROM ventas WHERE 1=1';
+    const params = [];
+    
+    if (status && status !== 'all') {
+      params.push(status);
+      query += ` AND estado = $${params.length}`;
+    }
+    
+    query += ' ORDER BY fecha_creacion DESC LIMIT $' + (params.length + 1);
+    params.push(parseInt(limit));
+    
+    const result = await pool.query(query, params);
     
     res.json({
       success: true,
@@ -1426,7 +1189,7 @@ app.get('/api/admin/sales', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error en /api/admin/sales:', error);
+    console.error('Error obteniendo ventas:', error);
     res.status(500).json({
       success: false,
       message: 'Error obteniendo ventas',
@@ -1435,24 +1198,84 @@ app.get('/api/admin/sales', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/admin/sales/:id', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM ventas WHERE id = $1',
+      [req.params.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Venta no encontrada'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Error obteniendo venta:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error obteniendo venta',
+      error: error.message
+    });
+  }
+});
+
+app.put('/api/admin/sales/:id', authenticateToken, async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Estado requerido'
+      });
+    }
+    
+    const result = await pool.query(
+      'UPDATE ventas SET estado = $1 WHERE id = $2 RETURNING *',
+      [status, req.params.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Venta no encontrada'
+      });
+    }
+    
+    console.log('✅ Venta actualizada:', req.params.id);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Error actualizando venta:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error actualizando venta',
+      error: error.message
+    });
+  }
+});
+
 // ============================================
-// MANEJO DE ERRORES
+// MANEJO DE ERRORES 404
 // ============================================
 
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Ruta no encontrada',
-    path: req.originalUrl
-  });
-});
-
-app.use((err, req, res, next) => {
-  console.error('🔥 Error:', err);
-  res.status(500).json({
-    success: false,
-    message: 'Error interno del servidor',
-    error: err.message
+    path: req.url
   });
 });
 
@@ -1461,55 +1284,25 @@ app.use((err, req, res, next) => {
 // ============================================
 
 async function startServer() {
-  try {
-    await initDatabase();
-    
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`
-╔═══════════════════════════════════════════════════════╗
-║   🚀 EL CHICHO SHOP - BACKEND V3.0 (RELACIONAL)       ║
-╚═══════════════════════════════════════════════════════╝
-
-✅ Servidor: http://localhost:${PORT}
-🛡️ CORS habilitado para localhost
-🔐 JWT configurado
-
-📦 ENDPOINTS PÚBLICOS:
-   • GET  /api/products
-   • GET  /api/products/:id
-   • GET  /api/categories
-   • POST /api/sales
-   • POST /api/clients/register
-   • POST /api/clients/login
-
-🔒 ENDPOINTS ADMIN:
-   • POST   /api/admin/login
-   • GET    /api/admin/verify
-   • GET    /api/admin/categories
-   • POST   /api/admin/categories
-   • DELETE /api/admin/categories/:id
-   • GET    /api/admin/categories/:id/subcategories
-   • POST   /api/admin/subcategories
-   • DELETE /api/admin/subcategories/:id
-   • GET    /api/admin/products
-   • POST   /api/admin/products
-   • PUT    /api/admin/products/:id
-   • DELETE /api/admin/products/:id
-   • GET    /api/admin/dashboard
-   • GET    /api/admin/sales
-
-🔑 CREDENCIALES (desde .env):
-   Usuario: ${process.env.ADMIN_USERNAME}
-   Contraseña: ${process.env.ADMIN_PASSWORD}
-
-🎉 ¡Servidor listo!
-      `);
-    });
-    
-  } catch (error) {
-    console.error('❌ Error crítico:', error);
+  const dbInitialized = await initDatabase();
+  
+  if (!dbInitialized) {
+    console.error('❌ No se pudo inicializar la base de datos');
     process.exit(1);
   }
+  
+  app.listen(PORT, () => {
+    console.log('');
+    console.log('='.repeat(50));
+    console.log('🚀 EL CHICHO SHOP - SERVIDOR INICIADO');
+    console.log('='.repeat(50));
+    console.log(`📡 Puerto: ${PORT}`);
+    console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🗄️  Base de datos: PostgreSQL conectado`);
+    console.log(`⏰ Iniciado: ${new Date().toLocaleString()}`);
+    console.log('='.repeat(50));
+    console.log('');
+  });
 }
 
 startServer();
