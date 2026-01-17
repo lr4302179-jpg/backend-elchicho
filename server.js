@@ -7,7 +7,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
@@ -19,14 +19,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'elchicho_secret_key_2024';
 // ============================================
 
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || 'elchichoshop',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'luis.2005',
-  max: 10,
-  idleTimeoutMillis: 30000
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
+
 
 pool.on('error', (err) => {
   console.error('Error inesperado en PostgreSQL:', err);
