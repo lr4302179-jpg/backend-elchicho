@@ -1136,41 +1136,131 @@ app.delete("/api/admin/productos/:id", autenticarToken, async (req, res) => {
   }
 });
 
+// ===============================================
+// DASHBOARD - ESTADÍSTICAS
+// ===============================================
+
+// Dashboard principal (totales)
+app.get("/api/admin/dashboard", autenticarToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                (SELECT COUNT(*) FROM productos) AS totalProductos,
+                (SELECT COALESCE(SUM(precio_compra * stock), 0) FROM productos) AS totalInvertido,
+                (SELECT COALESCE(SUM(precio_venta * stock), 0) FROM productos) AS valorInventario,
+                (SELECT COALESCE(SUM((precio_venta - precio_compra) * stock), 0) FROM productos) AS gananciaPotencial
+        `);
+
+        return res.json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error("Error dashboard:", error);
+        res.status(500).json({ success: false, message: "Error cargando dashboard" });
+    }
+});
+
+// Productos más vendidos
+app.get("/api/admin/dashboard/top-products", autenticarToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT p.nombre AS name, SUM(v.cantidad) AS quantity
+            FROM ventas v
+            JOIN productos p ON p.id = v.producto_id
+            GROUP BY p.nombre
+            ORDER BY quantity DESC
+            LIMIT 5
+        `);
+
+        res.json({ success: true, data: result.rows });
+
+    } catch (error) {
+        console.error("Error top-products:", error);
+        res.status(500).json({ success: false, message: "Error cargando top productos" });
+    }
+});
+
+// Categorías más vendidas
+app.get("/api/admin/dashboard/top-categories", autenticarToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.nombre AS category, SUM(v.cantidad) AS quantity
+            FROM ventas v
+            JOIN productos p ON p.id = v.producto_id
+            JOIN categorias c ON c.id = p.categoria_id
+            GROUP BY c.nombre
+            ORDER BY quantity DESC
+            LIMIT 5
+        `);
+
+        res.json({ success: true, data: result.rows });
+
+    } catch (error) {
+        console.error("Error top-categories:", error);
+        res.status(500).json({ success: false, message: "Error cargando categorías" });
+    }
+});
+
+// Ventas diarias
+app.get("/api/admin/dashboard/daily-sales", autenticarToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                DATE(fecha) AS date,
+                SUM(cantidad) AS total
+            FROM ventas
+            GROUP BY DATE(fecha)
+            ORDER BY DATE(fecha) DESC
+            LIMIT 7
+        `);
+
+        res.json({ success: true, data: result.rows });
+
+    } catch (error) {
+        console.error("Error daily-sales:", error);
+        res.status(500).json({ success: false, message: "Error cargando ventas diarias" });
+    }
+});
+
+
 // ============================================
 // RUTAS DE ADMIN - TABLERO Y VENTAS
 // ============================================
 
 app.get('/api/admin/tablero', autenticarToken, async (req, res) => {
   try {
+    // Obtener valores reales
     const totalProductos = await pool.query('SELECT COUNT(*) FROM productos');
-    const productosActivos = await pool.query("SELECT COUNT(*) FROM productos WHERE LOWER(estado) = 'activo'");
     const totalCategorias = await pool.query('SELECT COUNT(*) FROM categorias');
-    const totalVentas = await pool.query('SELECT COUNT(*), SUM(total) FROM ventas');
-    const ventasRecientes = await pool.query(
-      'SELECT * FROM ventas ORDER BY fecha_creacion DESC LIMIT 10'
-    );
-    
-    res.json({
-      exito: true,
-      datos: {
-        productos_totales: parseInt(totalProductos.rows[0].count),
-        productos_activos: parseInt(productosActivos.rows[0].count),
-        categorias_totales: parseInt(totalCategorias.rows[0].count),
-        ventas_totales: parseInt(totalVentas.rows[0].count || 0),
-        ventas_monto_total: parseFloat(totalVentas.rows[0].sum || 0),
-        ventas_recientes: ventasRecientes.rows
+    const productosActivos = await pool.query("SELECT COUNT(*) FROM productos WHERE LOWER(estado) = 'activo'");
+    const totalVentas = await pool.query('SELECT COUNT(*) FROM ventas');
+
+    // Respuesta en formato que SÍ entiende el dashboard
+    return res.json({
+      success: true,
+      data: {
+        totalProductos: Number(totalProductos.rows[0].count),
+        totalCategorias: Number(totalCategorias.rows[0].count),
+        productosActivos: Number(productosActivos.rows[0].count),
+        totalVentas: Number(totalVentas.rows[0].count),
+        totalInvertido: 0,
+        valorInventario: 0,
+        gananciaPotencial: 0
       }
     });
-    
+
   } catch (error) {
     console.error('Error obteniendo tablero:', error);
     res.status(500).json({
-      exito: false,
-      mensaje: 'Error obteniendo datos del tablero',
+      success: false,
+      message: 'Error obteniendo datos del tablero',
       error: error.message
     });
   }
 });
+
 
 app.get('/api/admin/ventas', autenticarToken, async (req, res) => {
   try {
