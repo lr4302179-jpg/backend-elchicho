@@ -45,6 +45,17 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '10mb' }));
+// ============================================
+// RUTA DE SALUD DEL SERVIDOR
+// ============================================
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    status: "online",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.use(express.urlencoded({ extended: true }));
 
 // Logger
