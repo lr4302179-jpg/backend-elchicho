@@ -1,6 +1,6 @@
 // server.js - VERSIÓN COMPLETA EN ESPAÑOL
 // Para: El Chicho Shop
-// Fecha: 2025 - Versión 4.0 (Todo en español)
+// Fecha: 2025 - Versión 5.0 (TODO en español - Base de datos incluida)
 
 require('dotenv').config();
 
@@ -57,25 +57,25 @@ app.use((req, res, next) => {
 // MIDDLEWARE DE AUTENTICACIÓN
 // ============================================
 
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+function autenticarToken(req, res, next) {
+  const cabeceraAuth = req.headers['authorization'];
+  const token = cabeceraAuth && cabeceraAuth.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({
-      success: false,
-      message: 'Token no proporcionado'
+      exito: false,
+      mensaje: 'Token no proporcionado'
     });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err, usuario) => {
     if (err) {
       return res.status(403).json({
-        success: false,
-        message: 'Token inválido o expirado'
+        exito: false,
+        mensaje: 'Token inválido o expirado'
       });
     }
-    req.user = user;
+    req.usuario = usuario;
     next();
   });
 }
@@ -84,12 +84,12 @@ function authenticateToken(req, res, next) {
 // INICIALIZACIÓN DE BASE DE DATOS
 // ============================================
 
-async function initDatabase() {
+async function inicializarBaseDatos() {
   console.log('🔄 Inicializando base de datos...');
   
   try {
-    const test = await pool.query('SELECT NOW()');
-    console.log('✅ PostgreSQL conectado:', test.rows[0].now);
+    const prueba = await pool.query('SELECT NOW()');
+    console.log('✅ PostgreSQL conectado:', prueba.rows[0].now);
 
     // Tabla de categorías
     await pool.query(`
@@ -132,9 +132,9 @@ async function initDatabase() {
     `);
     console.log('✅ Tabla "productos" creada/verificada');
 
-    // Tabla de admins
+    // Tabla de administradores
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS admins (
+      CREATE TABLE IF NOT EXISTS administradores (
         id SERIAL PRIMARY KEY,
         usuario VARCHAR(100) UNIQUE NOT NULL,
         contrasena_hash VARCHAR(255) NOT NULL,
@@ -144,7 +144,7 @@ async function initDatabase() {
         fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('✅ Tabla "admins" creada/verificada');
+    console.log('✅ Tabla "administradores" creada/verificada');
 
     // Tabla de clientes
     await pool.query(`
@@ -155,7 +155,7 @@ async function initDatabase() {
         nombre VARCHAR(255) NOT NULL,
         correo VARCHAR(255) UNIQUE NOT NULL,
         telefono VARCHAR(20),
-        rol VARCHAR(50) DEFAULT 'client',
+        rol VARCHAR(50) DEFAULT 'cliente',
         fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -177,17 +177,17 @@ async function initDatabase() {
     `);
     console.log('✅ Tabla "ventas" creada/verificada');
 
-    // RECREAR ADMIN
-    await pool.query("DELETE FROM admins WHERE usuario = $1", [process.env.ADMIN_USERNAME]);
+    // RECREAR ADMINISTRADOR
+    await pool.query("DELETE FROM administradores WHERE usuario = $1", [process.env.ADMIN_USERNAME]);
     
-    const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
+    const contrasenaHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
     
     await pool.query(`
-      INSERT INTO admins (usuario, contrasena_hash, nombre, correo, rol)
+      INSERT INTO administradores (usuario, contrasena_hash, nombre, correo, rol)
       VALUES ($1, $2, $3, $4, $5)
     `, [
       process.env.ADMIN_USERNAME,
-      hashedPassword,
+      contrasenaHash,
       'Administrador Principal',
       process.env.ADMIN_EMAIL,
       'admin'
@@ -195,7 +195,7 @@ async function initDatabase() {
     
     console.log('✅ Administrador recreado desde .env');
     console.log('👤 Usuario:', process.env.ADMIN_USERNAME);
-    console.log('🔐 Contraseña:', process.env.ADMIN_PASSWORD);
+    console.log('🔑 Contraseña:', process.env.ADMIN_PASSWORD);
     console.log('🎉 Base de datos inicializada correctamente\n');
     
     return true;
@@ -212,63 +212,63 @@ async function initDatabase() {
 
 app.get('/', (req, res) => {
   res.json({
-    message: '🚀 El Chicho Shop API v4.0',
-    status: 'Operativo',
-    env: process.env.NODE_ENV,
+    mensaje: '🚀 El Chicho Shop API v5.0',
+    estado: 'Operativo',
+    entorno: process.env.NODE_ENV,
     endpoints: {
-      public: {
-        health: 'GET /api/health',
-        products: 'GET /api/products',
-        productById: 'GET /api/products/:id',
-        categories: 'GET /api/categories',
-        createSale: 'POST /api/sales',
-        clientRegister: 'POST /api/clients/register',
-        clientLogin: 'POST /api/clients/login'
+      publicos: {
+        salud: 'GET /api/salud',
+        productos: 'GET /api/productos',
+        productoPorId: 'GET /api/productos/:id',
+        categorias: 'GET /api/categorias',
+        crearVenta: 'POST /api/ventas',
+        registroCliente: 'POST /api/clientes/registro',
+        loginCliente: 'POST /api/clientes/login'
       },
       admin: {
         login: 'POST /api/admin/login',
-        verify: 'GET /api/admin/verify',
-        categories: 'GET /api/admin/categories',
-        createCategory: 'POST /api/admin/categories',
-        deleteCategory: 'DELETE /api/admin/categories/:id',
-        subcategories: 'GET /api/admin/categories/:id/subcategories',
-        createSubcategory: 'POST /api/admin/subcategories',
-        deleteSubcategory: 'DELETE /api/admin/subcategories/:id',
-        products: 'GET /api/admin/products',
-        createProduct: 'POST /api/admin/products',
-        updateProduct: 'PUT /api/admin/products/:id',
-        deleteProduct: 'DELETE /api/admin/products/:id',
-        dashboard: 'GET /api/admin/dashboard',
-        sales: 'GET /api/admin/sales'
+        verificar: 'GET /api/admin/verificar',
+        categorias: 'GET /api/admin/categorias',
+        crearCategoria: 'POST /api/admin/categorias',
+        eliminarCategoria: 'DELETE /api/admin/categorias/:id',
+        subcategorias: 'GET /api/admin/categorias/:id/subcategorias',
+        crearSubcategoria: 'POST /api/admin/subcategorias',
+        eliminarSubcategoria: 'DELETE /api/admin/subcategorias/:id',
+        productos: 'GET /api/admin/productos',
+        crearProducto: 'POST /api/admin/productos',
+        actualizarProducto: 'PUT /api/admin/productos/:id',
+        eliminarProducto: 'DELETE /api/admin/productos/:id',
+        tablero: 'GET /api/admin/tablero',
+        ventas: 'GET /api/admin/ventas'
       }
     }
   });
 });
 
-app.get('/api/health', async (req, res) => {
+app.get('/api/salud', async (req, res) => {
   try {
-    const dbTest = await pool.query('SELECT NOW()');
-    const productsCount = await pool.query('SELECT COUNT(*) FROM productos');
+    const pruebaDb = await pool.query('SELECT NOW()');
+    const cantidadProductos = await pool.query('SELECT COUNT(*) FROM productos');
     
     res.json({
-      success: true,
-      message: '✅ Servidor funcionando',
-      timestamp: new Date().toISOString(),
-      database: {
-        connected: true,
-        time: dbTest.rows[0].now,
-        products: parseInt(productsCount.rows[0].count)
+      exito: true,
+      mensaje: '✅ Servidor funcionando',
+      marca_tiempo: new Date().toISOString(),
+      base_datos: {
+        conectada: true,
+        hora: pruebaDb.rows[0].now,
+        productos: parseInt(cantidadProductos.rows[0].count)
       },
-      env: {
+      entorno: {
         node_env: process.env.NODE_ENV,
-        port: PORT,
-        db_name: process.env.DB_NAME
+        puerto: PORT,
+        nombre_bd: process.env.DB_NAME
       }
     });
   } catch (error) {
     res.status(500).json({
-      success: false,
-      message: 'Error de conexión',
+      exito: false,
+      mensaje: 'Error de conexión',
       error: error.message
     });
   }
@@ -278,126 +278,126 @@ app.get('/api/health', async (req, res) => {
 // RUTAS DE CLIENTES - REGISTRO Y LOGIN
 // ============================================
 
-app.post('/api/clients/register', async (req, res) => {
+app.post('/api/clientes/registro', async (req, res) => {
   try {
-    console.log('📝 Intento de registro de cliente:', req.body.username);
+    console.log('📝 Intento de registro de cliente:', req.body.usuario);
     
-    const { username, password, name, email, phone } = req.body;
+    const { usuario, contrasena, nombre, correo, telefono } = req.body;
     
-    if (!username || !password || !name || !email) {
+    if (!usuario || !contrasena || !nombre || !correo) {
       return res.status(400).json({
-        success: false,
-        message: 'Campos requeridos: username, password, name, email'
+        exito: false,
+        mensaje: 'Campos requeridos: usuario, contrasena, nombre, correo'
       });
     }
     
-    const existingUser = await pool.query(
+    const usuarioExistente = await pool.query(
       'SELECT id FROM clientes WHERE usuario = $1 OR correo = $2',
-      [username, email]
+      [usuario, correo]
     );
     
-    if (existingUser.rows.length > 0) {
+    if (usuarioExistente.rows.length > 0) {
       return res.status(400).json({
-        success: false,
-        message: 'El usuario o correo ya está registrado'
+        exito: false,
+        mensaje: 'El usuario o correo ya está registrado'
       });
     }
     
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const contrasenaHash = await bcrypt.hash(contrasena, 10);
     
-    const result = await pool.query(
+    const resultado = await pool.query(
       `INSERT INTO clientes (usuario, contrasena_hash, nombre, correo, telefono, rol)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, usuario, nombre, correo, telefono, rol, fecha_creacion`,
-      [username, hashedPassword, name, email, phone || null, 'client']
+      [usuario, contrasenaHash, nombre, correo, telefono || null, 'cliente']
     );
     
-    console.log('✅ Cliente registrado:', result.rows[0].id);
+    console.log('✅ Cliente registrado:', resultado.rows[0].id);
     
     res.status(201).json({
-      success: true,
-      message: 'Cliente registrado exitosamente',
-      data: {
-        user: result.rows[0]
+      exito: true,
+      mensaje: 'Cliente registrado exitosamente',
+      datos: {
+        usuario: resultado.rows[0]
       }
     });
     
   } catch (error) {
     console.error('❌ Error en registro de cliente:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error al registrar cliente',
+      exito: false,
+      mensaje: 'Error al registrar cliente',
       error: error.message
     });
   }
 });
 
-app.post('/api/clients/login', async (req, res) => {
+app.post('/api/clientes/login', async (req, res) => {
   try {
-    console.log('🔐 Intento de login de cliente:', req.body.identifier);
+    console.log('🔐 Intento de login de cliente:', req.body.identificador);
     
-    const { identifier, password } = req.body;
+    const { identificador, contrasena } = req.body;
     
-    if (!identifier || !password) {
+    if (!identificador || !contrasena) {
       return res.status(400).json({
-        success: false,
-        message: 'Usuario/email y contraseña requeridos'
+        exito: false,
+        mensaje: 'Usuario/email y contraseña requeridos'
       });
     }
     
-    const result = await pool.query(
+    const resultado = await pool.query(
       'SELECT * FROM clientes WHERE usuario = $1 OR correo = $1',
-      [identifier]
+      [identificador]
     );
     
-    if (result.rows.length === 0) {
-      console.log('❌ Cliente no encontrado:', identifier);
+    if (resultado.rows.length === 0) {
+      console.log('❌ Cliente no encontrado:', identificador);
       return res.status(401).json({
-        success: false,
-        message: 'Usuario no encontrado'
+        exito: false,
+        mensaje: 'Usuario no encontrado'
       });
     }
     
-    const client = result.rows[0];
-    const validPassword = await bcrypt.compare(password, client.contrasena_hash);
+    const cliente = resultado.rows[0];
+    const contrasenaValida = await bcrypt.compare(contrasena, cliente.contrasena_hash);
     
-    if (!validPassword) {
-      console.log('❌ Contraseña incorrecta para:', identifier);
+    if (!contrasenaValida) {
+      console.log('❌ Contraseña incorrecta para:', identificador);
       return res.status(401).json({
-        success: false,
-        message: 'Contraseña incorrecta'
+        exito: false,
+        mensaje: 'Contraseña incorrecta'
       });
     }
     
     const token = jwt.sign(
       {
-        userId: client.id,
-        username: client.usuario,
-        name: client.nombre,
-        role: client.rol
+        idUsuario: cliente.id,
+        usuario: cliente.usuario,
+        nombre: cliente.nombre,
+        rol: cliente.rol
       },
       JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
     
-    const { contrasena_hash, ...clientData } = client;
+    const { contrasena_hash, ...datosCliente } = cliente;
     
-    console.log('✅ Login de cliente exitoso:', client.usuario);
+    console.log('✅ Login de cliente exitoso:', cliente.usuario);
     
     res.json({
-      success: true,
-      message: 'Login exitoso',
-      data: {
+      exito: true,
+      mensaje: 'Login exitoso',
+      datos: {
         token: token,
-        user: clientData
+        usuario: datosCliente
       }
     });
     
   } catch (error) {
     console.error('❌ Error en login de cliente:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error en el servidor',
+      exito: false,
+      mensaje: 'Error en el servidor',
       error: error.message
     });
   }
@@ -407,11 +407,11 @@ app.post('/api/clients/login', async (req, res) => {
 // RUTAS DE PRODUCTOS (PÚBLICAS)
 // ============================================
 
-app.get("/api/products", async (req, res) => {
+app.get("/api/productos", async (req, res) => {
   try {
-    const { category_id, search, limit = 50 } = req.query;
+    const { categoria_id, buscar, limite = 50 } = req.query;
 
-    let query = `
+    let consulta = `
       SELECT 
         p.id,
         p.nombre,
@@ -434,47 +434,47 @@ app.get("/api/products", async (req, res) => {
       WHERE p.estado = 'ACTIVO'
     `;
 
-    const params = [];
+    const parametros = [];
 
-    if (category_id) {
-      params.push(category_id);
-      query += ` AND p.categoria_id = $${params.length}`;
+    if (categoria_id) {
+      parametros.push(categoria_id);
+      consulta += ` AND p.categoria_id = $${parametros.length}`;
     }
 
-    if (search) {
-      params.push(`%${search}%`);
-      query += ` AND (p.nombre ILIKE $${params.length} OR p.descripcion ILIKE $${params.length})`;
+    if (buscar) {
+      parametros.push(`%${buscar}%`);
+      consulta += ` AND (p.nombre ILIKE $${parametros.length} OR p.descripcion ILIKE $${parametros.length})`;
     }
 
-    query += " ORDER BY p.fecha_creacion DESC LIMIT $" + (params.length + 1);
-    params.push(parseInt(limit));
+    consulta += " ORDER BY p.fecha_creacion DESC LIMIT $" + (parametros.length + 1);
+    parametros.push(parseInt(limite));
 
-    console.log('📦 Ejecutando query de productos:', query);
-    console.log('📦 Parámetros:', params);
+    console.log('📦 Ejecutando consulta de productos:', consulta);
+    console.log('📦 Parámetros:', parametros);
 
-    const result = await pool.query(query, params);
+    const resultado = await pool.query(consulta, parametros);
     
-    console.log(`✅ Productos encontrados: ${result.rows.length}`);
+    console.log(`✅ Productos encontrados: ${resultado.rows.length}`);
     
     res.json({ 
-      success: true, 
-      data: result.rows,
-      count: result.rows.length
+      exito: true, 
+      datos: resultado.rows,
+      cantidad: resultado.rows.length
     });
 
   } catch (error) {
-    console.error('❌ Error en /api/products:', error);
+    console.error('❌ Error en /api/productos:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error obteniendo productos',
+      exito: false,
+      mensaje: 'Error obteniendo productos',
       error: error.message
     });
   }
 });
 
-app.get('/api/products/:id', async (req, res) => {
+app.get('/api/productos/:id', async (req, res) => {
   try {
-    const result = await pool.query(`
+    const resultado = await pool.query(`
       SELECT p.*, c.nombre AS nombre_categoria, s.nombre AS nombre_subcategoria
       FROM productos p
       LEFT JOIN categorias c ON c.id = p.categoria_id
@@ -482,48 +482,31 @@ app.get('/api/products/:id', async (req, res) => {
       WHERE p.id = $1 AND LOWER(p.estado) = 'activo'
     `, [req.params.id]);
     
-    if (result.rows.length === 0) {
+    if (resultado.rows.length === 0) {
       return res.status(404).json({
-        success: false,
-        message: 'Producto no encontrado'
+        exito: false,
+        mensaje: 'Producto no encontrado'
       });
     }
     
     res.json({
-      success: true,
-      data: result.rows[0]
+      exito: true,
+      datos: resultado.rows[0]
     });
     
   } catch (error) {
     console.error('❌ Error obteniendo producto:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error obteniendo producto',
+      exito: false,
+      mensaje: 'Error obteniendo producto',
       error: error.message
     });
   }
 });
 
-app.get('/api/debug/products', async (req, res) => {
+app.get('/api/categorias', async (req, res) => {
   try {
-    const allProducts = await pool.query('SELECT id, nombre, estado FROM productos');
-    const activeProducts = await pool.query("SELECT id, nombre, estado FROM productos WHERE LOWER(estado) = 'activo'");
-    
-    res.json({
-      success: true,
-      total: allProducts.rows.length,
-      active: activeProducts.rows.length,
-      allProducts: allProducts.rows,
-      activeProducts: activeProducts.rows
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.get('/api/categories', async (req, res) => {
-  try {
-    const result = await pool.query(`
+    const resultado = await pool.query(`
       SELECT 
         c.id,
         c.nombre,
@@ -538,64 +521,64 @@ app.get('/api/categories', async (req, res) => {
     `);
     
     res.json({
-      success: true,
-      data: result.rows
+      exito: true,
+      datos: resultado.rows
     });
     
   } catch (error) {
     res.status(500).json({
-      success: false,
-      message: 'Error obteniendo categorías',
+      exito: false,
+      mensaje: 'Error obteniendo categorías',
       error: error.message
     });
   }
 });
 
-app.post('/api/sales', async (req, res) => {
+app.post('/api/ventas', async (req, res) => {
   try {
     console.log('💰 Creando venta:', req.body);
     
-    const { cart_data, total, client_name, client_email, client_phone } = req.body;
+    const { datos_carrito, total, nombre_cliente, correo_cliente, telefono_cliente } = req.body;
     
-    if (!cart_data || !Array.isArray(cart_data) || cart_data.length === 0) {
+    if (!datos_carrito || !Array.isArray(datos_carrito) || datos_carrito.length === 0) {
       return res.status(400).json({
-        success: false,
-        message: 'Carrito vacío'
+        exito: false,
+        mensaje: 'Carrito vacío'
       });
     }
     
     if (!total || total <= 0) {
       return res.status(400).json({
-        success: false,
-        message: 'Total inválido'
+        exito: false,
+        mensaje: 'Total inválido'
       });
     }
     
-    const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const numeroOrden = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     
-    const result = await pool.query(
+    const resultado = await pool.query(
       `INSERT INTO ventas (numero_orden, datos_carrito, total, nombre_cliente, correo_cliente, telefono_cliente, estado)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
-        orderNumber,
-        JSON.stringify(cart_data),
+        numeroOrden,
+        JSON.stringify(datos_carrito),
         parseFloat(total),
-        client_name || 'Cliente',
-        client_email || '',
-        client_phone || '',
+        nombre_cliente || 'Cliente',
+        correo_cliente || '',
+        telefono_cliente || '',
         'pendiente'
       ]
     );
     
-    console.log('✅ Venta creada:', result.rows[0].id);
+    console.log('✅ Venta creada:', resultado.rows[0].id);
     
     res.status(201).json({
-      success: true,
-      message: 'Venta registrada',
-      data: {
-        saleId: result.rows[0].id,
-        orderNumber: orderNumber,
+      exito: true,
+      mensaje: 'Venta registrada',
+      datos: {
+        idVenta: resultado.rows[0].id,
+        numeroOrden: numeroOrden,
         total: parseFloat(total)
       }
     });
@@ -603,8 +586,8 @@ app.post('/api/sales', async (req, res) => {
   } catch (error) {
     console.error('❌ Error en venta:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error registrando venta',
+      exito: false,
+      mensaje: 'Error registrando venta',
       error: error.message
     });
   }
@@ -616,96 +599,96 @@ app.post('/api/sales', async (req, res) => {
 
 app.post('/api/admin/login', async (req, res) => {
   try {
-    console.log('🔐 Intento de login admin:', req.body.username);
+    console.log('🔐 Intento de login admin:', req.body.usuario);
     
-    const { username, password } = req.body;
+    const { usuario, contrasena } = req.body;
     
-    if (!username || !password) {
+    if (!usuario || !contrasena) {
       return res.status(400).json({
-        success: false,
-        message: 'Usuario y contraseña requeridos'
+        exito: false,
+        mensaje: 'Usuario y contraseña requeridos'
       });
     }
     
-    const result = await pool.query(
-      'SELECT * FROM admins WHERE usuario = $1',
-      [username]
+    const resultado = await pool.query(
+      'SELECT * FROM administradores WHERE usuario = $1',
+      [usuario]
     );
     
-    if (result.rows.length === 0) {
-      console.log('❌ Admin no encontrado:', username);
+    if (resultado.rows.length === 0) {
+      console.log('❌ Admin no encontrado:', usuario);
       return res.status(401).json({
-        success: false,
-        message: 'Usuario no encontrado'
+        exito: false,
+        mensaje: 'Usuario no encontrado'
       });
     }
     
-    const admin = result.rows[0];
-    const validPassword = await bcrypt.compare(password, admin.contrasena_hash);
+    const admin = resultado.rows[0];
+    const contrasenaValida = await bcrypt.compare(contrasena, admin.contrasena_hash);
     
-    if (!validPassword) {
-      console.log('❌ Contraseña incorrecta para admin:', username);
+    if (!contrasenaValida) {
+      console.log('❌ Contraseña incorrecta para admin:', usuario);
       return res.status(401).json({
-        success: false,
-        message: 'Contraseña incorrecta'
+        exito: false,
+        mensaje: 'Contraseña incorrecta'
       });
     }
     
     const token = jwt.sign(
       {
-        userId: admin.id,
-        username: admin.usuario,
-        name: admin.nombre,
-        role: admin.rol
+        idUsuario: admin.id,
+        usuario: admin.usuario,
+        nombre: admin.nombre,
+        rol: admin.rol
       },
       JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
     
-    const { contrasena_hash, ...adminData } = admin;
+    const { contrasena_hash, ...datosAdmin } = admin;
     
-    console.log('✅ Login admin exitoso:', username);
+    console.log('✅ Login admin exitoso:', usuario);
     
     res.json({
-      success: true,
-      message: 'Login exitoso',
+      exito: true,
+      mensaje: 'Login exitoso',
       token: token,
-      admin: adminData
+      admin: datosAdmin
     });
     
   } catch (error) {
     console.error('❌ Error en login admin:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error en el servidor',
+      exito: false,
+      mensaje: 'Error en el servidor',
       error: error.message
     });
   }
 });
 
-app.get('/api/admin/verify', authenticateToken, async (req, res) => {
+app.get('/api/admin/verificar', autenticarToken, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT id, usuario, nombre, correo, rol FROM admins WHERE id = $1',
-      [req.user.userId]
+    const resultado = await pool.query(
+      'SELECT id, usuario, nombre, correo, rol FROM administradores WHERE id = $1',
+      [req.usuario.idUsuario]
     );
     
-    if (result.rows.length === 0) {
+    if (resultado.rows.length === 0) {
       return res.status(401).json({
-        success: false,
-        message: 'Sesión inválida'
+        exito: false,
+        mensaje: 'Sesión inválida'
       });
     }
     
     res.json({
-      success: true,
-      admin: result.rows[0]
+      exito: true,
+      admin: resultado.rows[0]
     });
     
   } catch (error) {
     res.status(500).json({
-      success: false,
-      message: 'Error verificando sesión',
+      exito: false,
+      mensaje: 'Error verificando sesión',
       error: error.message
     });
   }
@@ -715,9 +698,9 @@ app.get('/api/admin/verify', authenticateToken, async (req, res) => {
 // RUTAS DE ADMIN - CATEGORÍAS
 // ============================================
 
-app.get("/api/admin/categories", authenticateToken, async (req, res) => {
+app.get("/api/admin/categorias", autenticarToken, async (req, res) => {
   try {
-    const result = await pool.query(`
+    const resultado = await pool.query(`
       SELECT c.id, c.nombre, c.fecha_creacion,
         COUNT(p.id) AS cantidad_productos
       FROM categorias c
@@ -726,74 +709,74 @@ app.get("/api/admin/categories", authenticateToken, async (req, res) => {
       ORDER BY c.nombre ASC
     `);
     
-    res.json({ success: true, data: result.rows });
+    res.json({ exito: true, datos: resultado.rows });
   } catch (error) {
     console.error('Error obteniendo categorías:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error obteniendo categorías',
+      exito: false,
+      mensaje: 'Error obteniendo categorías',
       error: error.message
     });
   }
 });
 
-app.post("/api/admin/categories", authenticateToken, async (req, res) => {
+app.post("/api/admin/categorias", autenticarToken, async (req, res) => {
   try {
-    const { name } = req.body;
+    const { nombre } = req.body;
     
-    if (!name) {
+    if (!nombre) {
       return res.status(400).json({
-        success: false,
-        message: 'El nombre de la categoría es requerido'
+        exito: false,
+        mensaje: 'El nombre de la categoría es requerido'
       });
     }
     
-    const result = await pool.query(
+    const resultado = await pool.query(
       "INSERT INTO categorias (nombre) VALUES ($1) RETURNING *",
-      [name]
+      [nombre]
     );
     
-    console.log('✅ Categoría creada:', result.rows[0].id);
+    console.log('✅ Categoría creada:', resultado.rows[0].id);
     
     res.status(201).json({ 
-      success: true, 
-      data: result.rows[0] 
+      exito: true, 
+      datos: resultado.rows[0] 
     });
   } catch (error) {
     console.error('Error creando categoría:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error creando categoría',
+      exito: false,
+      mensaje: 'Error creando categoría',
       error: error.message
     });
   }
 });
 
-app.delete("/api/admin/categories/:id", authenticateToken, async (req, res) => {
+app.delete("/api/admin/categorias/:id", autenticarToken, async (req, res) => {
   try {
-    const result = await pool.query(
+    const resultado = await pool.query(
       "DELETE FROM categorias WHERE id = $1 RETURNING *", 
       [req.params.id]
     );
     
-    if (result.rows.length === 0) {
+    if (resultado.rows.length === 0) {
       return res.status(404).json({
-        success: false,
-        message: 'Categoría no encontrada'
+        exito: false,
+        mensaje: 'Categoría no encontrada'
       });
     }
     
     console.log('✅ Categoría eliminada:', req.params.id);
     
     res.json({ 
-      success: true, 
-      message: "Categoría eliminada" 
+      exito: true, 
+      mensaje: "Categoría eliminada" 
     });
   } catch (error) {
     console.error('Error eliminando categoría:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error eliminando categoría',
+      exito: false,
+      mensaje: 'Error eliminando categoría',
       error: error.message
     });
   }
@@ -803,81 +786,81 @@ app.delete("/api/admin/categories/:id", authenticateToken, async (req, res) => {
 // RUTAS DE ADMIN - SUBCATEGORÍAS
 // ============================================
 
-app.get("/api/admin/categories/:id/subcategories", authenticateToken, async (req, res) => {
+app.get("/api/admin/categorias/:id/subcategorias", autenticarToken, async (req, res) => {
   try {
-    const result = await pool.query(
+    const resultado = await pool.query(
       "SELECT * FROM subcategorias WHERE categoria_id = $1 ORDER BY nombre ASC",
       [req.params.id]
     );
     
-    res.json({ success: true, data: result.rows });
+    res.json({ exito: true, datos: resultado.rows });
   } catch (error) {
     console.error('Error obteniendo subcategorías:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error obteniendo subcategorías',
+      exito: false,
+      mensaje: 'Error obteniendo subcategorías',
       error: error.message
     });
   }
 });
 
-app.post("/api/admin/subcategories", authenticateToken, async (req, res) => {
+app.post("/api/admin/subcategorias", autenticarToken, async (req, res) => {
   try {
-    const { category_id, name } = req.body;
+    const { categoria_id, nombre } = req.body;
     
-    if (!category_id || !name) {
+    if (!categoria_id || !nombre) {
       return res.status(400).json({
-        success: false,
-        message: 'category_id y name son requeridos'
+        exito: false,
+        mensaje: 'categoria_id y nombre son requeridos'
       });
     }
     
-    const result = await pool.query(
+    const resultado = await pool.query(
       "INSERT INTO subcategorias (categoria_id, nombre) VALUES ($1, $2) RETURNING *",
-      [category_id, name]
+      [categoria_id, nombre]
     );
     
-    console.log('✅ Subcategoría creada:', result.rows[0].id);
+    console.log('✅ Subcategoría creada:', resultado.rows[0].id);
     
     res.status(201).json({ 
-      success: true, 
-      data: result.rows[0] 
+      exito: true, 
+      datos: resultado.rows[0] 
     });
   } catch (error) {
     console.error('Error creando subcategoría:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error creando subcategoría',
+      exito: false,
+      mensaje: 'Error creando subcategoría',
       error: error.message
     });
   }
 });
 
-app.delete("/api/admin/subcategories/:id", authenticateToken, async (req, res) => {
+app.delete("/api/admin/subcategorias/:id", autenticarToken, async (req, res) => {
   try {
-    const result = await pool.query(
+    const resultado = await pool.query(
       "DELETE FROM subcategorias WHERE id = $1 RETURNING *", 
       [req.params.id]
     );
     
-    if (result.rows.length === 0) {
+    if (resultado.rows.length === 0) {
       return res.status(404).json({
-        success: false,
-        message: 'Subcategoría no encontrada'
+        exito: false,
+        mensaje: 'Subcategoría no encontrada'
       });
     }
     
     console.log('✅ Subcategoría eliminada:', req.params.id);
     
     res.json({ 
-      success: true, 
-      message: "Subcategoría eliminada" 
+      exito: true, 
+      mensaje: "Subcategoría eliminada" 
     });
   } catch (error) {
     console.error('Error eliminando subcategoría:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error eliminando subcategoría',
+      exito: false,
+      mensaje: 'Error eliminando subcategoría',
       error: error.message
     });
   }
@@ -887,11 +870,11 @@ app.delete("/api/admin/subcategories/:id", authenticateToken, async (req, res) =
 // RUTAS DE ADMIN - PRODUCTOS
 // ============================================
 
-app.get("/api/admin/products", authenticateToken, async (req, res) => {
+app.get("/api/admin/productos", autenticarToken, async (req, res) => {
   try {
-    const { category_id, status, search, limit = 100 } = req.query;
+    const { categoria_id, estado, buscar, limite = 100 } = req.query;
     
-    let query = `
+    let consulta = `
       SELECT p.*, c.nombre AS nombre_categoria, s.nombre AS nombre_subcategoria
       FROM productos p
       LEFT JOIN categorias c ON c.id = p.categoria_id
@@ -899,47 +882,47 @@ app.get("/api/admin/products", authenticateToken, async (req, res) => {
       WHERE 1=1
     `;
     
-    const params = [];
+    const parametros = [];
     
-    if (category_id && category_id !== 'all') {
-      params.push(category_id);
-      query += ` AND p.categoria_id = $${params.length}`;
+    if (categoria_id && categoria_id !== 'all') {
+      parametros.push(categoria_id);
+      consulta += ` AND p.categoria_id = $${parametros.length}`;
     }
     
-    if (status && status !== 'all') {
-      params.push(status);
-      query += ` AND p.estado = $${params.length}`;
+    if (estado && estado !== 'all') {
+      parametros.push(estado);
+      consulta += ` AND p.estado = $${parametros.length}`;
     }
     
-    if (search) {
-      params.push(`%${search}%`);
-      query += ` AND (p.nombre ILIKE $${params.length} OR p.descripcion ILIKE $${params.length})`;
+    if (buscar) {
+      parametros.push(`%${buscar}%`);
+      consulta += ` AND (p.nombre ILIKE $${parametros.length} OR p.descripcion ILIKE $${parametros.length})`;
     }
     
-    query += ' ORDER BY p.fecha_creacion DESC LIMIT $' + (params.length + 1);
-    params.push(parseInt(limit));
+    consulta += ' ORDER BY p.fecha_creacion DESC LIMIT $' + (parametros.length + 1);
+    parametros.push(parseInt(limite));
     
-    const result = await pool.query(query, params);
+    const resultado = await pool.query(consulta, parametros);
     
     res.json({ 
-      success: true, 
-      data: result.rows,
-      count: result.rows.length
+      exito: true, 
+      datos: resultado.rows,
+      cantidad: resultado.rows.length
     });
     
   } catch (error) {
     console.error('Error obteniendo productos admin:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error obteniendo productos',
+      exito: false,
+      mensaje: 'Error obteniendo productos',
       error: error.message
     });
   }
 });
 
-app.get('/api/admin/products/:id', authenticateToken, async (req, res) => {
+app.get('/api/admin/productos/:id', autenticarToken, async (req, res) => {
   try {
-    const result = await pool.query(`
+    const resultado = await pool.query(`
       SELECT p.*, c.nombre AS nombre_categoria, s.nombre AS nombre_subcategoria
       FROM productos p
       LEFT JOIN categorias c ON c.id = p.categoria_id
@@ -947,51 +930,51 @@ app.get('/api/admin/products/:id', authenticateToken, async (req, res) => {
       WHERE p.id = $1
     `, [req.params.id]);
     
-    if (result.rows.length === 0) {
+    if (resultado.rows.length === 0) {
       return res.status(404).json({
-        success: false,
-        message: 'Producto no encontrado'
+        exito: false,
+        mensaje: 'Producto no encontrado'
       });
     }
     
     res.json({
-      success: true,
-      data: result.rows[0]
+      exito: true,
+      datos: resultado.rows[0]
     });
     
   } catch (error) {
     console.error('Error obteniendo producto:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error obteniendo producto',
+      exito: false,
+      mensaje: 'Error obteniendo producto',
       error: error.message
     });
   }
 });
 
-app.post("/api/admin/products", authenticateToken, async (req, res) => {
+app.post("/api/admin/productos", autenticarToken, async (req, res) => {
   try {
     const {
-      name,
-      category_id,
-      subcategory_id,
-      price,
+      nombre,
+      categoria_id,
+      subcategoria_id,
+      precio,
       invertido,
-      description,
-      image_base64,
+      descripcion,
+      imagen_base64,
       stock,
-      status,
-      featured
+      estado,
+      destacado
     } = req.body;
     
-    if (!name || !price) {
+    if (!nombre || !precio) {
       return res.status(400).json({
-        success: false,
-        message: 'Nombre y precio son requeridos'
+        exito: false,
+        mensaje: 'Nombre y precio son requeridos'
       });
     }
     
-    const result = await pool.query(
+    const resultado = await pool.query(
       `INSERT INTO productos (
         nombre, categoria_id, subcategoria_id, precio, invertido,
         descripcion, imagen_base64, stock, estado, destacado
@@ -999,52 +982,52 @@ app.post("/api/admin/products", authenticateToken, async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *`,
       [
-        name,
-        category_id || null,
-        subcategory_id || null,
-        parseFloat(price),
+        nombre,
+        categoria_id || null,
+        subcategoria_id || null,
+        parseFloat(precio),
         parseFloat(invertido) || 0,
-        description || '',
-        image_base64 || null,
+        descripcion || '',
+        imagen_base64 || null,
         parseInt(stock) || 0,
-        status || 'ACTIVO',
-        featured || false
+        estado || 'ACTIVO',
+        destacado || false
       ]
     );
     
-    console.log('✅ Producto creado:', result.rows[0].id);
+    console.log('✅ Producto creado:', resultado.rows[0].id);
     
     res.status(201).json({
-      success: true,
-      data: result.rows[0]
+      exito: true,
+      datos: resultado.rows[0]
     });
     
   } catch (error) {
     console.error('Error creando producto:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error creando producto',
+      exito: false,
+      mensaje: 'Error creando producto',
       error: error.message
     });
   }
 });
 
-app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+app.put("/api/admin/productos/:id", autenticarToken, async (req, res) => {
   try {
     const {
-      name,
-      category_id,
-      subcategory_id,
-      price,
+      nombre,
+      categoria_id,
+      subcategoria_id,
+      precio,
       invertido,
-      description,
-      image_base64,
+      descripcion,
+      imagen_base64,
       stock,
-      status,
-      featured
+      estado,
+      destacado
     } = req.body;
     
-    const result = await pool.query(
+    const resultado = await pool.query(
       `UPDATE productos SET
         nombre = COALESCE($1, nombre),
         categoria_id = COALESCE($2, categoria_id),
@@ -1060,208 +1043,208 @@ app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
       WHERE id = $11
       RETURNING *`,
       [
-        name,
-        category_id,
-        subcategory_id,
-        price ? parseFloat(price) : null,
+        nombre,
+        categoria_id,
+        subcategoria_id,
+        precio ? parseFloat(precio) : null,
         invertido !== undefined ? parseFloat(invertido) : null,
-        description,
-        image_base64,
+        descripcion,
+        imagen_base64,
         stock !== undefined ? parseInt(stock) : null,
-        status,
-        featured,
+        estado,
+        destacado,
         req.params.id
       ]
     );
     
-    if (result.rows.length === 0) {
+    if (resultado.rows.length === 0) {
       return res.status(404).json({
-        success: false,
-        message: 'Producto no encontrado'
+        exito: false,
+        mensaje: 'Producto no encontrado'
       });
     }
     
     console.log('✅ Producto actualizado:', req.params.id);
     
     res.json({
-      success: true,
-      data: result.rows[0]
+      exito: true,
+      datos: resultado.rows[0]
     });
     
   } catch (error) {
     console.error('Error actualizando producto:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error actualizando producto',
+      exito: false,
+      mensaje: 'Error actualizando producto',
       error: error.message
     });
   }
 });
 
-app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+app.delete("/api/admin/productos/:id", autenticarToken, async (req, res) => {
   try {
-    const result = await pool.query(
+    const resultado = await pool.query(
       "DELETE FROM productos WHERE id = $1 RETURNING *",
       [req.params.id]
     );
     
-    if (result.rows.length === 0) {
+    if (resultado.rows.length === 0) {
       return res.status(404).json({
-        success: false,
-        message: 'Producto no encontrado'
+        exito: false,
+        mensaje: 'Producto no encontrado'
       });
     }
     
     console.log('✅ Producto eliminado:', req.params.id);
     
     res.json({
-      success: true,
-      message: 'Producto eliminado'
+      exito: true,
+      mensaje: 'Producto eliminado'
     });
     
   } catch (error) {
     console.error('Error eliminando producto:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error eliminando producto',
+      exito: false,
+      mensaje: 'Error eliminando producto',
       error: error.message
     });
   }
 });
 
 // ============================================
-// RUTAS DE ADMIN - DASHBOARD Y VENTAS
+// RUTAS DE ADMIN - TABLERO Y VENTAS
 // ============================================
 
-app.get('/api/admin/dashboard', authenticateToken, async (req, res) => {
+app.get('/api/admin/tablero', autenticarToken, async (req, res) => {
   try {
-    const totalProducts = await pool.query('SELECT COUNT(*) FROM productos');
-    const activeProducts = await pool.query("SELECT COUNT(*) FROM productos WHERE LOWER(estado) = 'activo'");
-    const totalCategories = await pool.query('SELECT COUNT(*) FROM categorias');
-    const totalSales = await pool.query('SELECT COUNT(*), SUM(total) FROM ventas');
-    const recentSales = await pool.query(
+    const totalProductos = await pool.query('SELECT COUNT(*) FROM productos');
+    const productosActivos = await pool.query("SELECT COUNT(*) FROM productos WHERE LOWER(estado) = 'activo'");
+    const totalCategorias = await pool.query('SELECT COUNT(*) FROM categorias');
+    const totalVentas = await pool.query('SELECT COUNT(*), SUM(total) FROM ventas');
+    const ventasRecientes = await pool.query(
       'SELECT * FROM ventas ORDER BY fecha_creacion DESC LIMIT 10'
     );
     
     res.json({
-      success: true,
-      data: {
-        productos_totales: parseInt(totalProducts.rows[0].count),
-        productos_activos: parseInt(activeProducts.rows[0].count),
-        categorias_totales: parseInt(totalCategories.rows[0].count),
-        ventas_totales: parseInt(totalSales.rows[0].count || 0),
-        ventas_monto_total: parseFloat(totalSales.rows[0].sum || 0),
-        ventas_recientes: recentSales.rows
+      exito: true,
+      datos: {
+        productos_totales: parseInt(totalProductos.rows[0].count),
+        productos_activos: parseInt(productosActivos.rows[0].count),
+        categorias_totales: parseInt(totalCategorias.rows[0].count),
+        ventas_totales: parseInt(totalVentas.rows[0].count || 0),
+        ventas_monto_total: parseFloat(totalVentas.rows[0].sum || 0),
+        ventas_recientes: ventasRecientes.rows
       }
     });
     
   } catch (error) {
-    console.error('Error obteniendo dashboard:', error);
+    console.error('Error obteniendo tablero:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error obteniendo datos del dashboard',
+      exito: false,
+      mensaje: 'Error obteniendo datos del tablero',
       error: error.message
     });
   }
 });
 
-app.get('/api/admin/sales', authenticateToken, async (req, res) => {
+app.get('/api/admin/ventas', autenticarToken, async (req, res) => {
   try {
-    const { status, limit = 50 } = req.query;
+    const { estado, limite = 50 } = req.query;
     
-    let query = 'SELECT * FROM ventas WHERE 1=1';
-    const params = [];
+    let consulta = 'SELECT * FROM ventas WHERE 1=1';
+    const parametros = [];
     
-    if (status && status !== 'all') {
-      params.push(status);
-      query += ` AND estado = $${params.length}`;
+    if (estado && estado !== 'all') {
+      parametros.push(estado);
+      consulta += ` AND estado = ${parametros.length}`;
     }
     
-    query += ' ORDER BY fecha_creacion DESC LIMIT $' + (params.length + 1);
-    params.push(parseInt(limit));
+    consulta += ' ORDER BY fecha_creacion DESC LIMIT $' + (parametros.length + 1);
+    parametros.push(parseInt(limite));
     
-    const result = await pool.query(query, params);
+    const resultado = await pool.query(consulta, parametros);
     
     res.json({
-      success: true,
-      data: result.rows,
-      count: result.rows.length
+      exito: true,
+      datos: resultado.rows,
+      cantidad: resultado.rows.length
     });
     
   } catch (error) {
     console.error('Error obteniendo ventas:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error obteniendo ventas',
+      exito: false,
+      mensaje: 'Error obteniendo ventas',
       error: error.message
     });
   }
 });
 
-app.get('/api/admin/sales/:id', authenticateToken, async (req, res) => {
+app.get('/api/admin/ventas/:id', autenticarToken, async (req, res) => {
   try {
-    const result = await pool.query(
+    const resultado = await pool.query(
       'SELECT * FROM ventas WHERE id = $1',
       [req.params.id]
     );
     
-    if (result.rows.length === 0) {
+    if (resultado.rows.length === 0) {
       return res.status(404).json({
-        success: false,
-        message: 'Venta no encontrada'
+        exito: false,
+        mensaje: 'Venta no encontrada'
       });
     }
     
     res.json({
-      success: true,
-      data: result.rows[0]
+      exito: true,
+      datos: resultado.rows[0]
     });
     
   } catch (error) {
     console.error('Error obteniendo venta:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error obteniendo venta',
+      exito: false,
+      mensaje: 'Error obteniendo venta',
       error: error.message
     });
   }
 });
 
-app.put('/api/admin/sales/:id', authenticateToken, async (req, res) => {
+app.put('/api/admin/ventas/:id', autenticarToken, async (req, res) => {
   try {
-    const { status } = req.body;
+    const { estado } = req.body;
     
-    if (!status) {
+    if (!estado) {
       return res.status(400).json({
-        success: false,
-        message: 'Estado requerido'
+        exito: false,
+        mensaje: 'Estado requerido'
       });
     }
     
-    const result = await pool.query(
+    const resultado = await pool.query(
       'UPDATE ventas SET estado = $1 WHERE id = $2 RETURNING *',
-      [status, req.params.id]
+      [estado, req.params.id]
     );
     
-    if (result.rows.length === 0) {
+    if (resultado.rows.length === 0) {
       return res.status(404).json({
-        success: false,
-        message: 'Venta no encontrada'
+        exito: false,
+        mensaje: 'Venta no encontrada'
       });
     }
     
     console.log('✅ Venta actualizada:', req.params.id);
     
     res.json({
-      success: true,
-      data: result.rows[0]
+      exito: true,
+      datos: resultado.rows[0]
     });
     
   } catch (error) {
     console.error('Error actualizando venta:', error);
     res.status(500).json({
-      success: false,
-      message: 'Error actualizando venta',
+      exito: false,
+      mensaje: 'Error actualizando venta',
       error: error.message
     });
   }
@@ -1273,9 +1256,9 @@ app.put('/api/admin/sales/:id', authenticateToken, async (req, res) => {
 
 app.use((req, res) => {
   res.status(404).json({
-    success: false,
-    message: 'Ruta no encontrada',
-    path: req.url
+    exito: false,
+    mensaje: 'Ruta no encontrada',
+    ruta: req.url
   });
 });
 
@@ -1283,10 +1266,10 @@ app.use((req, res) => {
 // INICIAR SERVIDOR
 // ============================================
 
-async function startServer() {
-  const dbInitialized = await initDatabase();
+async function iniciarServidor() {
+  const bdInicializada = await inicializarBaseDatos();
   
-  if (!dbInitialized) {
+  if (!bdInicializada) {
     console.error('❌ No se pudo inicializar la base de datos');
     process.exit(1);
   }
@@ -1298,11 +1281,11 @@ async function startServer() {
     console.log('='.repeat(50));
     console.log(`📡 Puerto: ${PORT}`);
     console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🗄️  Base de datos: PostgreSQL conectado`);
+    console.log(`🗄️ Base de datos: PostgreSQL conectado`);
     console.log(`⏰ Iniciado: ${new Date().toLocaleString()}`);
     console.log('='.repeat(50));
     console.log('');
   });
 }
 
-startServer();
+iniciarServidor();
