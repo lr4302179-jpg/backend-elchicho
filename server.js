@@ -45,23 +45,6 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '10mb' }));
-app.get("/api/products", async (req, res) => {
-  try {
-    const products = await db.all("SELECT * FROM products");
-
-    res.json({
-      success: true,
-      data: products
-    });
-
-  } catch (error) {
-    console.error("Error al obtener productos:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error al obtener productos"
-    });
-  }
-});
 
 // ============================================
 // RUTA DE SALUD DEL SERVIDOR
@@ -73,6 +56,18 @@ app.get("/api/health", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Obtener todos los productos (para el INDEX público)
+app.get("/api/products", async (req, res) => {
+  try {
+    const products = await pool.query("SELECT * FROM products");
+    res.json(products.rows);
+  } catch (error) {
+    console.error("Error al obtener productos:", error);
+    res.status(500).json({ error: "Error al obtener productos" });
+  }
+});
+
 
 app.use(express.urlencoded({ extended: true }));
 
