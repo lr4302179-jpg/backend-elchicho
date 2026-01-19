@@ -45,6 +45,24 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '10mb' }));
+app.get("/api/products", async (req, res) => {
+  try {
+    const products = await db.all("SELECT * FROM products");
+
+    res.json({
+      success: true,
+      data: products
+    });
+
+  } catch (error) {
+    console.error("Error al obtener productos:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al obtener productos"
+    });
+  }
+});
+
 // ============================================
 // RUTA DE SALUD DEL SERVIDOR
 // ============================================
