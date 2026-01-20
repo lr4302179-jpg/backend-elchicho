@@ -108,6 +108,10 @@ function autenticarToken(req, res, next) {
 // INICIALIZACIÓN DE BASE DE DATOS
 // ============================================
 
+// ============================================
+// INICIALIZACIÓN DE BASE DE DATOS CON CATEGORÍAS PREDETERMINADAS
+// ============================================
+
 async function inicializarBaseDatos() {
   console.log('🔄 Inicializando base de datos...');
   
@@ -201,7 +205,61 @@ async function inicializarBaseDatos() {
     `);
     console.log('✅ Tabla "ventas" creada/verificada');
 
+    // ============================================
+    // INSERTAR CATEGORÍAS PREDETERMINADAS
+    // ============================================
+    
+    // Verificar si ya existen categorías
+    const categoriasExistentes = await pool.query('SELECT COUNT(*) FROM categorias');
+    
+    if (parseInt(categoriasExistentes.rows[0].count) === 0) {
+      console.log('📂 Creando categorías predeterminadas...');
+      
+      // Categoría: Electrodomésticos
+      const electroResult = await pool.query(
+        "INSERT INTO categorias (nombre) VALUES ($1) RETURNING id",
+        ['Electrodomésticos']
+      );
+      const electroId = electroResult.rows[0].id;
+      console.log('✅ Categoría "Electrodomésticos" creada');
+      
+      // Subcategorías de Electrodomésticos
+      await pool.query(
+        "INSERT INTO subcategorias (categoria_id, nombre) VALUES ($1, $2), ($1, $3), ($1, $4), ($1, $5)",
+        [electroId, 'Cocina', 'Limpieza', 'Climatización', 'Entretenimiento']
+      );
+      console.log('✅ Subcategorías de Electrodomésticos creadas');
+      
+      // Categoría: Ropa
+      const ropaResult = await pool.query(
+        "INSERT INTO categorias (nombre) VALUES ($1) RETURNING id",
+        ['Ropa']
+      );
+      const ropaId = ropaResult.rows[0].id;
+      console.log('✅ Categoría "Ropa" creada');
+      
+      // Subcategorías de Ropa
+      await pool.query(
+        "INSERT INTO subcategorias (categoria_id, nombre) VALUES ($1, $2), ($1, $3), ($1, $4), ($1, $5)",
+        [ropaId, 'Hombres', 'Mujeres', 'Calzado', 'Accesorios']
+      );
+      console.log('✅ Subcategorías de Ropa creadas');
+      
+      // Categoría: Otros
+      await pool.query(
+        "INSERT INTO categorias (nombre) VALUES ($1)",
+        ['Otros']
+      );
+      console.log('✅ Categoría "Otros" creada');
+      
+    } else {
+      console.log('ℹ️ Las categorías ya existen, omitiendo creación');
+    }
+
+    // ============================================
     // RECREAR ADMINISTRADOR
+    // ============================================
+    
     await pool.query("DELETE FROM administradores WHERE usuario = $1", [process.env.ADMIN_USERNAME]);
     
     const contrasenaHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
@@ -730,6 +788,98 @@ app.get("/api/admin/categorias", autenticarToken, async (req, res) => {
       FROM categorias c
       LEFT JOIN productos p ON p.categoria_id = c.id
       GROUP BY c.id
+      ORDER BY c.nombre ASC
+    `);
+    
+    res.json({ exito: true, datos: resultado.rows });
+  } catch (error) {
+    console.error('Error obteniendo categorías:', error);
+    res.status(500).json({
+      exito: false,
+      mensaje: 'Error obteniendo categorías',
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/admin/categorias", autenticarToken, async (req, res) => {
+  try {
+    const { nombre } = req.body;
+    
+    if (!nombre) {
+      return res.status(400).json({
+        exito: false,
+        mensaje: 'El nombre de la categoría es requerido'
+      });
+    }
+    
+    const resultado = await pool.query(
+      "INSERT INTO categorias (nombre) VALUES ($1) RETURNING *",
+      [nombre]
+    );
+    
+    console.log('✅ Categoría creada:', resultado.rows[0].id);
+    
+    res.status(201).json({ 
+      exito: true, 
+      datos: resultado.rows[0] 
+    });
+  } catch (error) {
+    console.error('Error creando categoría:', error);
+    res.status(500).json({
+      exito: false,
+      mensaje: 'Error creando categoría',
+      error: error.message
+    });
+  }
+});
+
+app.delete("/api/admin/categorias/:id", autenticarToken, async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      "DELETE FROM categorias WHERE id = $1 RETURNING *", 
+      [req.params.id]
+    );
+    
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        exito: false,
+        mensaje: 'Categoría no encontrada'
+      });
+    }
+    
+    console.log('✅ Categoría eliminada:', req.params.id);
+    
+    res.json({ 
+      exito: true, 
+      mensaje: "Categoría eliminada" 
+    });
+  } catch (error) {
+    console.error('Error eliminando categoría:', error);
+    res.status(500).json({
+      exito: false,
+      mensaje: 'Error eliminando categoría',
+      error: error.message
+    });
+  }
+});
+
+// ============================================
+// RUTAS DE ADMIN - SUBCATEGORÍAS
+// ============================================
+
+// ============================================
+// RUTAS DE ADMIN - CATEGORÍAS (CORREGIDAS)
+// ============================================
+
+app.get("/api/admin/categorias", autenticarToken, async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT c.id, c.nombre, c.fecha_creacion,
+        COUNT(p.id) AS cantidad_productos
+      FROM categorias c
+      LEFT JOIN productos p ON p.categoria_id = c.id
+      GROUP BY c.id, c.nombre
       ORDER BY c.nombre ASC
     `);
     
