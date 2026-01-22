@@ -489,6 +489,7 @@ app.post('/api/clientes/login', async (req, res) => {
 // RUTAS DE PRODUCTOS (PÚBLICAS)
 // ============================================
 
+// RUTAS DE PRODUCTOS (PÚBLICAS) - VERSIÓN CASE-INSENSITIVE Y TOLERANTE
 app.get("/api/productos", async (req, res) => {
   try {
     const { categoria_id, buscar, limite = 50 } = req.query;
@@ -513,7 +514,7 @@ app.get("/api/productos", async (req, res) => {
       FROM productos p
       LEFT JOIN categorias c ON c.id = p.categoria_id
       LEFT JOIN subcategorias s ON s.id = p.subcategoria_id
-      WHERE p.estado = 'ACTIVO'
+      WHERE LOWER(COALESCE(p.estado, '')) = 'activo'
     `;
 
     const parametros = [];
@@ -535,9 +536,9 @@ app.get("/api/productos", async (req, res) => {
     console.log('📦 Parámetros:', parametros);
 
     const resultado = await pool.query(consulta, parametros);
-    
+
     console.log(`✅ Productos encontrados: ${resultado.rows.length}`);
-    
+
     res.json({ 
       exito: true, 
       datos: resultado.rows,
@@ -553,6 +554,7 @@ app.get("/api/productos", async (req, res) => {
     });
   }
 });
+
 
 app.get('/api/productos/:id', async (req, res) => {
   try {
