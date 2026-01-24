@@ -1,6 +1,6 @@
-// server.js - VERSIÓN COMPLETA EN ESPAÑOL - CORREGIDA
+// server.js - VERSIÓN COMPLETA Y CORREGIDA
 // Para: El Chicho Shop
-// Fecha: 2025 - Versión 5.1 (Con tabla de clientes funcionando)
+// Fecha: 2025 - Versión 5.2 (TODAS LAS FUNCIONES)
 
 require('dotenv').config();
 
@@ -146,7 +146,7 @@ async function inicializarBaseDatos() {
     `);
     console.log('✅ Tabla "administradores" creada/verificada');
 
-    // Tabla de clientes (CORREGIDA Y MEJORADA)
+    // Tabla de clientes
     await pool.query(`
       CREATE TABLE IF NOT EXISTS clientes (
         id SERIAL PRIMARY KEY,
@@ -187,60 +187,40 @@ async function inicializarBaseDatos() {
     `);
     console.log('✅ Tabla "ventas" creada/verificada');
 
-    // ============================================
-    // INSERTAR CATEGORÍAS PREDETERMINADAS
-    // ============================================
-    
+    // Insertar categorías predeterminadas
     const categoriasExistentes = await pool.query('SELECT COUNT(*) FROM categorias');
     
     if (parseInt(categoriasExistentes.rows[0].count) === 0) {
       console.log('📂 Creando categorías predeterminadas...');
       
-      // Categoría: Electrodomésticos
       const electroResult = await pool.query(
         "INSERT INTO categorias (nombre) VALUES ($1) RETURNING id",
         ['Electrodomésticos']
       );
       const electroId = electroResult.rows[0].id;
-      console.log('✅ Categoría "Electrodomésticos" creada');
       
-      // Subcategorías de Electrodomésticos
       await pool.query(
         "INSERT INTO subcategorias (categoria_id, nombre) VALUES ($1, $2), ($1, $3), ($1, $4), ($1, $5)",
         [electroId, 'Cocina', 'Limpieza', 'Climatización', 'Entretenimiento']
       );
-      console.log('✅ Subcategorías de Electrodomésticos creadas');
       
-      // Categoría: Ropa
       const ropaResult = await pool.query(
         "INSERT INTO categorias (nombre) VALUES ($1) RETURNING id",
         ['Ropa']
       );
       const ropaId = ropaResult.rows[0].id;
-      console.log('✅ Categoría "Ropa" creada');
       
-      // Subcategorías de Ropa
       await pool.query(
         "INSERT INTO subcategorias (categoria_id, nombre) VALUES ($1, $2), ($1, $3), ($1, $4), ($1, $5)",
         [ropaId, 'Hombres', 'Mujeres', 'Calzado', 'Accesorios']
       );
-      console.log('✅ Subcategorías de Ropa creadas');
       
-      // Categoría: Otros
-      await pool.query(
-        "INSERT INTO categorias (nombre) VALUES ($1)",
-        ['Otros']
-      );
-      console.log('✅ Categoría "Otros" creada');
+      await pool.query("INSERT INTO categorias (nombre) VALUES ($1)", ['Otros']);
       
-    } else {
-      console.log('ℹ️ Las categorías ya existen, omitiendo creación');
+      console.log('✅ Categorías creadas');
     }
 
-    // ============================================
-    // RECREAR ADMINISTRADOR
-    // ============================================
-    
+    // Recrear administrador
     await pool.query("DELETE FROM administradores WHERE usuario = $1", [process.env.ADMIN_USERNAME]);
     
     const contrasenaHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
@@ -256,7 +236,7 @@ async function inicializarBaseDatos() {
       'admin'
     ]);
     
-    console.log('✅ Administrador recreado desde .env');
+    console.log('✅ Administrador recreado');
     console.log('👤 Usuario:', process.env.ADMIN_USERNAME);
     console.log('🔐 Contraseña:', process.env.ADMIN_PASSWORD);
     console.log('🎉 Base de datos inicializada correctamente\n');
@@ -270,17 +250,18 @@ async function inicializarBaseDatos() {
 }
 
 // ============================================
-// RUTAS PÚBLICAS
+// RUTAS PÚBLICAS - INFORMACIÓN
 // ============================================
 
 app.get('/', (req, res) => {
   res.json({
-    mensaje: '🚀 El Chicho Shop API v5.1',
+    mensaje: '🚀 El Chicho Shop API v5.2',
     estado: 'Operativo',
     entorno: process.env.NODE_ENV,
     endpoints: {
       publicos: {
         salud: 'GET /api/salud',
+        health: 'GET /api/health',
         productos: 'GET /api/productos',
         productoPorId: 'GET /api/productos/:id',
         categorias: 'GET /api/categorias',
@@ -359,7 +340,7 @@ app.get('/api/salud', async (req, res) => {
 });
 
 // ============================================
-// RUTAS DE CLIENTES - REGISTRO Y LOGIN (CORREGIDAS)
+// RUTAS DE CLIENTES - REGISTRO Y LOGIN
 // ============================================
 
 app.post('/api/clientes/registro', async (req, res) => {
@@ -368,7 +349,6 @@ app.post('/api/clientes/registro', async (req, res) => {
     
     const { usuario, contrasena, nombre, correo, telefono } = req.body;
     
-    // Validaciones
     if (!usuario || !contrasena || !nombre || !correo) {
       return res.status(400).json({
         success: false,
@@ -376,7 +356,6 @@ app.post('/api/clientes/registro', async (req, res) => {
       });
     }
     
-    // Verificar si el usuario o correo ya existen
     const usuarioExistente = await pool.query(
       'SELECT id FROM clientes WHERE usuario = $1 OR correo = $2',
       [usuario, correo]
@@ -389,10 +368,8 @@ app.post('/api/clientes/registro', async (req, res) => {
       });
     }
     
-    // Hashear contraseña
     const contrasenaHash = await bcrypt.hash(contrasena, 10);
     
-    // Insertar cliente
     const resultado = await pool.query(
       `INSERT INTO clientes (usuario, contrasena_hash, nombre, correo, telefono, rol)
        VALUES ($1, $2, $3, $4, $5, $6)
@@ -434,7 +411,6 @@ app.post('/api/clientes/login', async (req, res) => {
       });
     }
     
-    // Buscar cliente
     const resultado = await pool.query(
       'SELECT * FROM clientes WHERE usuario = $1 OR correo = $1',
       [identificador]
@@ -450,7 +426,6 @@ app.post('/api/clientes/login', async (req, res) => {
     
     const cliente = resultado.rows[0];
     
-    // Verificar contraseña
     const contrasenaValida = await bcrypt.compare(pass, cliente.contrasena_hash);
     
     if (!contrasenaValida) {
@@ -461,13 +436,11 @@ app.post('/api/clientes/login', async (req, res) => {
       });
     }
     
-    // Actualizar última sesión
     await pool.query(
       'UPDATE clientes SET ultima_sesion = CURRENT_TIMESTAMP WHERE id = $1',
       [cliente.id]
     );
     
-    // Generar token
     const token = jwt.sign(
       {
         idUsuario: cliente.id,
@@ -780,8 +753,83 @@ app.delete('/api/admin/clientes/:id', autenticarToken, async (req, res) => {
 });
 
 // ============================================
-// CONTINUACIÓN DE RUTAS (Admin, Categorías, Productos, etc.)
-// El resto del código permanece igual...
+// RUTAS DE ADMIN - LOGIN
+// ============================================
+
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { usuario, contrasena } = req.body;
+    
+    if (!usuario || !contrasena) {
+      return res.status(400).json({
+        exito: false,
+        mensaje: 'Usuario y contraseña requeridos'
+      });
+    }
+    
+    const resultado = await pool.query(
+      'SELECT * FROM administradores WHERE usuario = $1',
+      [usuario]
+    );
+    
+    if (resultado.rows.length === 0) {
+      return res.status(401).json({
+        exito: false,
+        mensaje: 'Credenciales inválidas'
+      });
+    }
+    
+    const admin = resultado.rows[0];
+    const contrasenaValida = await bcrypt.compare(contrasena, admin.contrasena_hash);
+    
+    if (!contrasenaValida) {
+      return res.status(401).json({
+        exito: false,
+        mensaje: 'Credenciales inválidas'
+      });
+    }
+    
+    const token = jwt.sign(
+      {
+        idUsuario: admin.id,
+        usuario: admin.usuario,
+        nombre: admin.nombre,
+        rol: admin.rol
+      },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+    
+    const { contrasena_hash, ...datosAdmin } = admin;
+    
+    res.json({
+      exito: true,
+      mensaje: 'Login exitoso',
+      datos: {
+        token: token,
+        usuario: datosAdmin
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error en login admin:', error);
+    res.status(500).json({
+      exito: false,
+      mensaje: 'Error en el servidor',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/admin/verificar', autenticarToken, (req, res) => {
+  res.json({
+    exito: true,
+    usuario: req.usuario
+  });
+});
+
+// ============================================
+// RUTA DE VENTAS
 // ============================================
 
 app.post('/api/ventas', async (req, res) => {
@@ -844,7 +892,7 @@ app.post('/api/ventas', async (req, res) => {
 });
 
 // ============================================
-// MANEJO DE ERRORES 404
+// MANEJO DE ERRORES 404 - DEBE IR AL FINAL
 // ============================================
 
 app.use((req, res) => {
@@ -867,15 +915,32 @@ async function iniciarServidor() {
     process.exit(1);
   }
   
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log('');
     console.log('='.repeat(50));
     console.log('🚀 EL CHICHO SHOP - SERVIDOR INICIADO');
     console.log('='.repeat(50));
     console.log(`📡 Puerto: ${PORT}`);
-    console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🗄️ Base de datos: PostgreSQL conectado`);
     console.log(`⏰ Iniciado: ${new Date().toLocaleString()}`);
+    console.log('');
+    console.log('📋 RUTAS DISPONIBLES:');
+    console.log('   GET  / (Info general)');
+    console.log('   GET  /api/health');
+    console.log('   GET  /api/salud');
+    console.log('   POST /api/clientes/registro ✅');
+    console.log('   POST /api/clientes/login ✅');
+    console.log('   GET  /api/productos');
+    console.log('   GET  /api/productos/:id');
+    console.log('   GET  /api/categorias');
+    console.log('   POST /api/ventas');
+    console.log('   POST /api/admin/login');
+    console.log('   GET  /api/admin/verificar (requiere token)');
+    console.log('   GET  /api/admin/clientes (requiere token)');
+    console.log('   GET  /api/admin/clientes/:id (requiere token)');
+    console.log('   PUT  /api/admin/clientes/:id (requiere token)');
+    console.log('   DELETE /api/admin/clientes/:id (requiere token)');
     console.log('='.repeat(50));
     console.log('');
   });
