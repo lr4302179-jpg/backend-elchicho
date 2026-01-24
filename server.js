@@ -166,6 +166,17 @@ async function inicializarBaseDatos() {
     `);
     console.log('✅ Tabla "clientes" creada/verificada');
 
+    // MIGRACIÓN: Agregar columna ultima_sesion si no existe
+    try {
+      await pool.query(`
+        ALTER TABLE clientes 
+        ADD COLUMN IF NOT EXISTS ultima_sesion TIMESTAMP
+      `);
+      console.log('✅ Columna "ultima_sesion" verificada/agregada');
+    } catch (error) {
+      console.log('ℹ️ Columna ultima_sesion ya existe o error menor:', error.message);
+    }
+
     // Tabla de ventas
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ventas (
@@ -436,10 +447,15 @@ app.post('/api/clientes/login', async (req, res) => {
       });
     }
     
-    await pool.query(
-      'UPDATE clientes SET ultima_sesion = CURRENT_TIMESTAMP WHERE id = $1',
-      [cliente.id]
-    );
+    // Actualizar última sesión (opcional, no bloquea si falla)
+    try {
+      await pool.query(
+        'UPDATE clientes SET ultima_sesion = CURRENT_TIMESTAMP WHERE id = $1',
+        [cliente.id]
+      );
+    } catch (updateError) {
+      console.log('⚠️ No se pudo actualizar ultima_sesion:', updateError.message);
+    }
     
     const token = jwt.sign(
       {
