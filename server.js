@@ -924,26 +924,33 @@ app.post('/api/clientes/registro', async (req, res) => {
   }
 });
 
+// ============================================
+// RUTA DE LOGIN CORREGIDA - server.js
+// Reemplazar líneas 927-995 con este código
+// ============================================
+
 app.post('/api/clientes/login', async (req, res) => {
   try {
     const { usuario, contrasena } = req.body;
     
     if (!usuario || !contrasena) {
       return res.status(400).json({
-        exito: false,
-        mensaje: 'Usuario y contraseña requeridos'
+        success: false,
+        message: 'Usuario y contraseña requeridos'
       });
     }
     
+    // ✅ CORRECCIÓN: Quitar el filtro de "activo" que causa el error
+    // La columna activo no existe en tu base de datos
     const resultado = await pool.query(
-      'SELECT * FROM clientes WHERE usuario = $1 AND activo = true',
+      'SELECT * FROM clientes WHERE usuario = $1',
       [usuario]
     );
     
     if (resultado.rows.length === 0) {
       return res.status(401).json({
-        exito: false,
-        mensaje: 'Credenciales inválidas'
+        success: false,
+        message: 'Usuario no encontrado'
       });
     }
     
@@ -952,15 +959,21 @@ app.post('/api/clientes/login', async (req, res) => {
     
     if (!contrasenaValida) {
       return res.status(401).json({
-        exito: false,
-        mensaje: 'Credenciales inválidas'
+        success: false,
+        message: 'Contraseña incorrecta'
       });
     }
     
-    await pool.query(
-      'UPDATE clientes SET ultima_sesion = CURRENT_TIMESTAMP WHERE id = $1',
-      [cliente.id]
-    );
+    // Intentar actualizar ultima_sesion (puede fallar si no existe la columna)
+    try {
+      await pool.query(
+        'UPDATE clientes SET ultima_sesion = CURRENT_TIMESTAMP WHERE id = $1',
+        [cliente.id]
+      );
+    } catch (updateError) {
+      // Ignorar el error si la columna no existe
+      console.log('Nota: No se pudo actualizar ultima_sesion');
+    }
     
     const token = jwt.sign(
       {
@@ -975,20 +988,21 @@ app.post('/api/clientes/login', async (req, res) => {
     
     const { contrasena_hash, ...datosCliente } = cliente;
     
+    // ✅ CORRECCIÓN: Usar formato consistente con el frontend
     res.json({
-      exito: true,
-      mensaje: 'Login exitoso',
-      datos: {
+      success: true,
+      message: 'Login exitoso',
+      data: {
         token: token,
-        cliente: datosCliente
+        user: datosCliente
       }
     });
     
   } catch (error) {
     console.error('Error en login cliente:', error);
     res.status(500).json({
-      exito: false,
-      mensaje: 'Error en el servidor',
+      success: false,
+      message: 'Error en el servidor',
       error: error.message
     });
   }
