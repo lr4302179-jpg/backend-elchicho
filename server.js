@@ -203,6 +203,51 @@ async function inicializarBaseDatos() {
       console.log('ℹ️ Columna ultima_sesion ya existe o error menor:', error.message);
     }
 
+    // MIGRACIÓN: Agregar columna direccion si no existe
+    try {
+      await pool.query(`
+        ALTER TABLE clientes 
+        ADD COLUMN IF NOT EXISTS direccion TEXT DEFAULT ''
+      `);
+      console.log('✅ Columna "direccion" verificada/agregada');
+    } catch (error) {
+      console.log('ℹ️ Columna direccion ya existe o error menor:', error.message);
+    }
+
+    // MIGRACIÓN: Agregar columna ciudad si no existe
+    try {
+      await pool.query(`
+        ALTER TABLE clientes 
+        ADD COLUMN IF NOT EXISTS ciudad VARCHAR(100)
+      `);
+      console.log('✅ Columna "ciudad" verificada/agregada');
+    } catch (error) {
+      console.log('ℹ️ Columna ciudad ya existe o error menor:', error.message);
+    }
+
+    // MIGRACIÓN: Agregar columna pais si no existe
+    try {
+      await pool.query(`
+        ALTER TABLE clientes 
+        ADD COLUMN IF NOT EXISTS pais VARCHAR(100)
+      `);
+      console.log('✅ Columna "pais" verificada/agregada');
+    } catch (error) {
+      console.log('ℹ️ Columna pais ya existe o error menor:', error.message);
+    }
+
+    // MIGRACIÓN: Agregar columna activo si no existe
+    try {
+      await pool.query(`
+        ALTER TABLE clientes 
+        ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT true
+      `);
+      console.log('✅ Columna "activo" verificada/agregada');
+    } catch (error) {
+      console.log('ℹ️ Columna activo ya existe o error menor:', error.message);
+    }
+
+
     // Tabla de ventas
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ventas (
