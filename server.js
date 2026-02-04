@@ -63,7 +63,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Ruta raíz - sirve el login
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.htm'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Rutas específicas del panel admin (opcional, ya que express.static las maneja)
