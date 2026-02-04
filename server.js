@@ -1387,7 +1387,7 @@ app.use((req, res) => {
     });
   } else {
     // Para rutas no-API, servir index.htm (SPA fallback)
-    res.sendFile(path.join(__dirname, 'public', 'index.htm'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
   }
 });
 
